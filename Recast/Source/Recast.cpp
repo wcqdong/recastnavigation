@@ -316,11 +316,15 @@ bool rcCreateHeightfield(rcContext* ctx, rcHeightfield& hf, int width, int heigh
 
 static void calcTriNormal(const float* v0, const float* v1, const float* v2, float* norm)
 {
-	float e0[3], e1[3];
-	rcVsub(e0, v1, v0);
-	rcVsub(e1, v2, v0);
-	rcVcross(norm, e0, e1);
-	rcVnormalize(norm);
+    float e0[3], e1[3];
+    // vo->v1的向量
+    rcVsub(e0, v1, v0);
+    // vo->v2的向量
+    rcVsub(e1, v2, v0);
+    // 叉乘，求法向量
+    rcVcross(norm, e0, e1);
+    // 向量归一化
+    rcVnormalize(norm);
 }
 
 /// @par
@@ -338,16 +342,22 @@ void rcMarkWalkableTriangles(rcContext* ctx, const float walkableSlopeAngle,
 {
 	rcIgnoreUnused(ctx);
 	rcIgnoreUnused(nv);
-	
+
+    //cosθ的值，在单位圆中cosθ=x
 	const float walkableThr = cosf(walkableSlopeAngle/180.0f*RC_PI);
 
+    // 三角形面的法向量
 	float norm[3];
 	
 	for (int i = 0; i < nt; ++i)
 	{
+        // 三角形三个顶点的索引
 		const int* tri = &tris[i*3];
+        // 垂直与三角形面的法向量，传入的参数是三角形三个顶点的x地址
 		calcTriNormal(&verts[tri[0]*3], &verts[tri[1]*3], &verts[tri[2]*3], norm);
 		// Check if the face is walkable.
+        // 在单位圆中，斜边长度=1，norm[1]=y，由于法向量与鞋面垂直，norm[1]=y相当于斜面上的x，则norm[1]与walkableThr比较其实是比x大小，
+        // x越大，坡越平缓
 		if (norm[1] > walkableThr)
 			areas[i] = RC_WALKABLE_AREA;
 	}
@@ -489,6 +499,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	}
 
 	// Find neighbour connections.
+    // 最高63层
 	const int MAX_LAYERS = RC_NOT_CONNECTED-1;
 	int tooHighNeighbour = 0;
 	for (int y = 0; y < h; ++y)
@@ -529,6 +540,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 								tooHighNeighbour = rcMax(tooHighNeighbour, lidx);
 								continue;
 							}
+                            // 设置为与邻居的第lidx层连通
 							rcSetCon(s, dir, lidx);
 							break;
 						}

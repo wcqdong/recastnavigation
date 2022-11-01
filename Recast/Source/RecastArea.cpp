@@ -54,6 +54,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 	memset(dist, 0xff, sizeof(unsigned char)*chf.spanCount);
 	
 	// Mark boundary cells.
+	// 标记出边界，本身span为不可走或者与四方向邻居都不相通，则span为边界，dist[i] = 0
 	for (int y = 0; y < h; ++y)
 	{
 		for (int x = 0; x < w; ++x)
@@ -83,16 +84,18 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 						}
 					}
 					// At least one missing neighbour.
+					// 与四个方向都不连通
 					if (nc != 4)
 						dist[i] = 0;
 				}
 			}
 		}
 	}
-	
+
 	unsigned char nd;
 	
 	// Pass 1
+	// 从左下到右上遍历
 	for (int y = 0; y < h; ++y)
 	{
 		for (int x = 0; x < w; ++x)
@@ -105,20 +108,24 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 				if (rcGetCon(s, 0) != RC_NOT_CONNECTED)
 				{
 					// (-1,0)
+					// 左邻居
 					const int ax = x + rcGetDirOffsetX(0);
 					const int ay = y + rcGetDirOffsetY(0);
 					const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, 0);
 					const rcCompactSpan& as = chf.spans[ai];
+					// 正交的邻居距离+2
 					nd = (unsigned char)rcMin((int)dist[ai]+2, 255);
 					if (nd < dist[i])
 						dist[i] = nd;
 					
 					// (-1,-1)
+					// 左下邻居
 					if (rcGetCon(as, 3) != RC_NOT_CONNECTED)
 					{
 						const int aax = ax + rcGetDirOffsetX(3);
 						const int aay = ay + rcGetDirOffsetY(3);
 						const int aai = (int)chf.cells[aax+aay*w].index + rcGetCon(as, 3);
+						// 斜方向的邻居距离+3
 						nd = (unsigned char)rcMin((int)dist[aai]+3, 255);
 						if (nd < dist[i])
 							dist[i] = nd;
@@ -127,6 +134,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 				if (rcGetCon(s, 3) != RC_NOT_CONNECTED)
 				{
 					// (0,-1)
+					// 下邻居
 					const int ax = x + rcGetDirOffsetX(3);
 					const int ay = y + rcGetDirOffsetY(3);
 					const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, 3);
@@ -136,6 +144,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 						dist[i] = nd;
 					
 					// (1,-1)
+					// 右下邻居
 					if (rcGetCon(as, 2) != RC_NOT_CONNECTED)
 					{
 						const int aax = ax + rcGetDirOffsetX(2);
@@ -151,6 +160,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 	}
 	
 	// Pass 2
+	// 从右上到左下遍历
 	for (int y = h-1; y >= 0; --y)
 	{
 		for (int x = w-1; x >= 0; --x)
@@ -210,6 +220,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 	
 	const unsigned char thr = (unsigned char)(radius*2);
 	for (int i = 0; i < chf.spanCount; ++i)
+		// radius范围内的设置为不可走
 		if (dist[i] < thr)
 			chf.areas[i] = RC_NULL_AREA;
 	

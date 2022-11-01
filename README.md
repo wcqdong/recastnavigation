@@ -90,3 +90,16 @@ See the [Contributing document](CONTRIBUTING.md) for guidelines for making contr
 ## License
 
 Recast & Detour is licensed under ZLib license, see License.txt for more information.
+
+
+## SoloMesh构建过程
+1. 初始化配置
+2. 光栅化
+3. 过滤
+   1. 比较低的悬空的情况（台阶等），上层不能走，但是下层能走时，把上层也置为可走
+   2. 有比较大落差时（悬崖、屋檐、窗台等地方），或邻居span之间高度差比较大时，当前span置为不可走
+   3. 上下span之间高度差过小的，下层span置为不可走
+4. 划分区域
+   1. 构建紧缩高度场
+   2. 构建可走区域，把与边界小于agent radius的span标记为不可走
+   3. area标记

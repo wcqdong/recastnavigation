@@ -934,6 +934,7 @@ void rcFilterWalkableLowHeightSpans(rcContext* ctx, int walkableHeight, rcHeight
 ///  @param[in,out]	ctx		The build context to use during the operation.
 ///  @param[in]		hf		An initialized heightfield.
 ///  @returns The number of spans in the heightfield.
+/// 计算span的数量
 int rcGetHeightFieldSpanCount(rcContext* ctx, rcHeightfield& hf);
 
 /// @}
@@ -960,6 +961,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 ///  @param[in]		radius	The radius of erosion. [Limits: 0 < value < 255] [Units: vx]
 ///  @param[in,out]	chf		The populated compact heightfield to erode.
 ///  @returns True if the operation completed successfully.
+/// 标记agent半径范围
 bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf);
 
 /// Applies a median filter to walkable area types (based on area id), removing noise.
@@ -988,6 +990,7 @@ void rcMarkBoxArea(rcContext* ctx, const float* bmin, const float* bmax, unsigne
 ///  @param[in]		hmax	The height of the top of the polygon.
 ///  @param[in]		areaId	The area id to apply. [Limit: <= #RC_WALKABLE_AREA]
 ///  @param[in,out]	chf		A populated compact heightfield.
+/// area标记
 void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
 						  const float hmin, const float hmax, unsigned char areaId,
 						  rcCompactHeightfield& chf);
@@ -1067,7 +1070,9 @@ bool rcBuildRegionsMonotone(rcContext* ctx, rcCompactHeightfield& chf,
 ///  @param[in]		i		The index of the neighbor span.
 inline void rcSetCon(rcCompactSpan& s, int dir, int i)
 {
-	const unsigned int shift = (unsigned int)dir*6;
+    // dir为 0左/1上/2右/3下，每个方向用6位存储，最高63层（6位都为1为不可行走,所以64-1=63）
+    // 4个方向共24位，每6位存储一个方向，所有s.conn长度为24
+    const unsigned int shift = (unsigned int)dir*6;
 	unsigned int con = s.con;
 	s.con = (con & ~(0x3f << shift)) | (((unsigned int)i & 0x3f) << shift);
 }

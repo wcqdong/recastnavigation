@@ -383,10 +383,12 @@ bool Sample_SoloMesh::handleBuild()
 	const float* verts = m_geom->getMesh()->getVerts();
 	const int nverts = m_geom->getMesh()->getVertCount();
 	const int* tris = m_geom->getMesh()->getTris();
+    // 三角形个数
 	const int ntris = m_geom->getMesh()->getTriCount();
 	
 	//
 	// Step 1. Initialize build config.
+    // Step 1. 初始化配置
 	//
 	
 	// Init build configuration from GUI
@@ -424,6 +426,7 @@ bool Sample_SoloMesh::handleBuild()
 	
 	//
 	// Step 2. Rasterize input polygon soup.
+    // Step 2. 光栅化
 	//
 	
 	// Allocate voxel heightfield where we rasterize our input data to.
@@ -453,7 +456,9 @@ bool Sample_SoloMesh::handleBuild()
 	// If your input data is multiple meshes, you can transform them here, calculate
 	// the are type for each of the meshes and rasterize them.
 	memset(m_triareas, 0, ntris*sizeof(unsigned char));
+    // 标记出可行走的三角形
 	rcMarkWalkableTriangles(m_ctx, m_cfg.walkableSlopeAngle, verts, nverts, tris, ntris, m_triareas);
+    // 光栅化
 	if (!rcRasterizeTriangles(m_ctx, verts, nverts, tris, m_triareas, ntris, *m_solid, m_cfg.walkableClimb))
 	{
 		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not rasterize triangles.");
@@ -494,6 +499,7 @@ bool Sample_SoloMesh::handleBuild()
 		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Out of memory 'chf'.");
 		return false;
 	}
+    // 构建紧缩高度场
 	if (!rcBuildCompactHeightfield(m_ctx, m_cfg.walkableHeight, m_cfg.walkableClimb, *m_solid, *m_chf))
 	{
 		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not build compact data.");
