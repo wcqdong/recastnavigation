@@ -567,13 +567,13 @@ struct rcRegion
 	unsigned char areaType;			// Are type.
 	bool remap;
 	bool visited;
-	bool overlap;
+	bool overlap;                   // 该region有多层，即该region上的cell上的多个span（多层），都属于该region
 	bool connectsToBorder;
 	unsigned short ymin, ymax;
-	rcIntArray connections;
-	rcIntArray floors;
+	rcIntArray connections;         // 与该region连通的其他region
+	rcIntArray floors;              // region范围内的上下包含了其他region，其他regionId记录到floors
 };
-
+/// 邻居region中如果有两个邻近region是相同的，则移除一个
 static void removeAdjacentNeighbours(rcRegion& reg)
 {
 	// Remove adjacent duplicates.
@@ -592,6 +592,7 @@ static void removeAdjacentNeighbours(rcRegion& reg)
 	}
 }
 
+/// 用新id替换reg里connections和floors的旧id
 static void replaceNeighbour(rcRegion& reg, unsigned short oldId, unsigned short newId)
 {
 	bool neiChanged = false;
@@ -622,10 +623,13 @@ static bool canMergeWithRegion(const rcRegion& rega, const rcRegion& regb)
 		if (rega.connections[i] == regb.id)
 			n++;
 	}
+    // n>1说明这两个region之间相邻，并且他们之间存在多个其他region，这种情况不能合并
+    // 比如像锁头的形状，锁头和锁环是两个region，有两个相连除，锁环与锁头之间的半圆也是个region
 	if (n > 1)
 		return false;
 	for (int i = 0; i < rega.floors.size(); ++i)
 	{
+        // rega和regb在上下层，不能合并
 		if (rega.floors[i] == regb.id)
 			return false;
 	}
@@ -653,6 +657,7 @@ static bool mergeRegions(rcRegion& rega, rcRegion& regb)
 	rcIntArray& bcon = regb.connections;
 	
 	// Find insertion point on A.
+    // regb在rega连通的region里的索引
 	int insa = -1;
 	for (int i = 0; i < acon.size(); ++i)
 	{
@@ -666,7 +671,8 @@ static bool mergeRegions(rcRegion& rega, rcRegion& regb)
 		return false;
 	
 	// Find insertion point on B.
-	int insb = -1;
+    // rega在regb连通的region里的索引
+    int insb = -1;
 	for (int i = 0; i < bcon.size(); ++i)
 	{
 		if (bcon[i] == aid)
@@ -679,18 +685,24 @@ static bool mergeRegions(rcRegion& rega, rcRegion& regb)
 		return false;
 	
 	// Merge neighbours.
+    // 把rega的邻居region放入rega.connections，除了regb
 	rega.connections.clear();
 	for (int i = 0, ni = acon.size(); i < ni-1; ++i)
 		rega.connections.push(acon[(insa+1+i) % ni]);
-		
-	for (int i = 0, ni = bcon.size(); i < ni-1; ++i)
+
+    // 把regb的邻居region放入rega.connections，除了rega
+    for (int i = 0, ni = bcon.size(); i < ni-1; ++i)
 		rega.connections.push(bcon[(insb+1+i) % ni]);
-	
+
+    // 合并后可能存在两个邻近region是相同的，移除一个
 	removeAdjacentNeighbours(rega);
-	
+
+    // 合并floor
 	for (int j = 0; j < regb.floors.size(); ++j)
 		addUniqueFloorRegion(rega, regb.floors[j]);
+    // 合并数量
 	rega.spanCount += regb.spanCount;
+    // 清空regb
 	regb.spanCount = 0;
 	regb.connections.resize(0);
 
@@ -709,6 +721,7 @@ static bool isRegionConnectedToBorder(const rcRegion& reg)
 	return false;
 }
 
+/// 如果与邻居不连通或者不是同一个region，则认为是边界
 static bool isSolidEdge(rcCompactHeightfield& chf, const unsigned short* srcReg,
 						int x, int y, int i, int dir)
 {
@@ -726,6 +739,7 @@ static bool isSolidEdge(rcCompactHeightfield& chf, const unsigned short* srcReg,
 	return true;
 }
 
+/// 沿着region的边缘walk，walk一圈回到原点，标记出walk
 static void walkContour(int x, int y, int i, int dir,
 						rcCompactHeightfield& chf,
 						const unsigned short* srcReg,
@@ -749,7 +763,8 @@ static void walkContour(int x, int y, int i, int dir,
 	while (++iter < 40000)
 	{
 		const rcCompactSpan& s = chf.spans[i];
-		
+
+        // 如果是边界
 		if (isSolidEdge(chf, srcReg, x, y, i, dir))
 		{
 			// Choose the edge corner
@@ -761,12 +776,14 @@ static void walkContour(int x, int y, int i, int dir,
 				const int ai = (int)chf.cells[ax+ay*chf.width].index + rcGetCon(s, dir);
 				r = srcReg[ai];
 			}
+            // 如果边界是不同region形成的,并且与上一次的regionId不同（说明沿本region边缘walk的过程中，一开始接壤region A，现在接壤了region B）
 			if (r != curReg)
 			{
 				curReg = r;
 				cont.push(curReg);
 			}
-			
+
+            // 顺时针旋转方向
 			dir = (dir+1) & 0x3;  // Rotate CW
 		}
 		else
@@ -784,12 +801,14 @@ static void walkContour(int x, int y, int i, int dir,
 				// Should not happen.
 				return;
 			}
+            // 移动到下一个span
 			x = nx;
 			y = ny;
 			i = ni;
+            // 逆时针旋转方向，dir的转变最终的效果是沿着region边沿遍历
 			dir = (dir+3) & 0x3;	// Rotate CCW
 		}
-		
+		// 绕一圈回到原点
 		if (starti == i && startDir == dir)
 		{
 			break;
@@ -797,15 +816,19 @@ static void walkContour(int x, int y, int i, int dir,
 	}
 
 	// Remove adjacent duplicates.
+    // 去掉重复的邻近region
 	if (cont.size() > 1)
 	{
 		for (int j = 0; j < cont.size(); )
 		{
 			int nj = (j+1) % cont.size();
+            // 发现邻近的相同的region，移除nj
 			if (cont[j] == cont[nj])
 			{
+                // 数据拷贝前移
 				for (int k = j; k < cont.size()-1; ++k)
 					cont[k] = cont[k+1];
+                // 删除最后一个
 				cont.pop();
 			}
 			else
@@ -845,26 +868,30 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 				unsigned short r = srcReg[i];
 				if (r == 0 || r >= nreg)
 					continue;
-				
+
+                // 统计region中span的数量
 				rcRegion& reg = regions[r];
 				reg.spanCount++;
 				
 				// Update floors.
+                // 同一个cell的多个span之间，如果其他层的span属于其他region，则region存在重叠，并加入到floors
 				for (int j = (int)c.index; j < ni; ++j)
 				{
 					if (i == j) continue;
 					unsigned short floorId = srcReg[j];
 					if (floorId == 0 || floorId >= nreg)
 						continue;
+                    // 其他层span与本层span是同一个region，则overlap
 					if (floorId == r)
 						reg.overlap = true;
+                    // 记录该region的上面或下面有其他层的存在
 					addUniqueFloorRegion(reg, floorId);
 				}
 				
 				// Have found contour
 				if (reg.connections.size() > 0)
 					continue;
-				
+				// 记录areaType，一个region一定是一个area
 				reg.areaType = chf.areas[i];
 				
 				// Check if this cell is next to a border.
@@ -888,8 +915,11 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 		}
 	}
 
+    // 连通的n个region形成的的范围如果总spancount小于minRegionArea，并且不挨着边界，则认为这片区域过小 移除掉
 	// Remove too small regions.
+    // 进行深度遍历的临时栈
 	rcIntArray stack(32);
+    // 临时记录连通的所有region
 	rcIntArray trace(32);
 	for (int i = 0; i < nreg; ++i)
 	{
@@ -903,14 +933,17 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 		
 		// Count the total size of all the connected regions.
 		// Also keep track of the regions connects to a tile border.
+        // 是否与挨着边界
 		bool connectsToBorder = false;
+        // n个连通区域的总的span数
 		int spanCount = 0;
 		stack.clear();
 		trace.clear();
 
 		reg.visited = true;
 		stack.push(i);
-		
+
+        // 寻找连通的region形成的范围
 		while (stack.size())
 		{
 			// Pop
@@ -918,11 +951,13 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 			
 			rcRegion& creg = regions[ri];
 
+            // 统计连通的region的总span数
 			spanCount += creg.spanCount;
 			trace.push(ri);
 
 			for (int j = 0; j < creg.connections.size(); ++j)
 			{
+                // 挨着边界
 				if (creg.connections[j] & RC_BORDER_REG)
 				{
 					connectsToBorder = true;
@@ -943,6 +978,7 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 		// Do not remove areas which connect to tile borders
 		// as their size cannot be estimated correctly and removing them
 		// can potentially remove necessary areas.
+        // n个region组成的范围内span数小于minRegionArea，并且不挨着边界
 		if (spanCount < minRegionArea && !connectsToBorder)
 		{
 			// Kill all visited regions.
@@ -978,9 +1014,11 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 			// Find smallest neighbour region that connects to this one.
 			int smallest = 0xfffffff;
 			unsigned short mergeId = reg.id;
+            // 找到spanCount最少并且可合并的的邻居region
 			for (int j = 0; j < reg.connections.size(); ++j)
 			{
 				if (reg.connections[j] & RC_BORDER_REG) continue;
+                // 邻居region
 				rcRegion& mreg = regions[reg.connections[j]];
 				if (mreg.id == 0 || (mreg.id & RC_BORDER_REG) || mreg.overlap) continue;
 				if (mreg.spanCount < smallest &&
@@ -998,6 +1036,7 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 				rcRegion& target = regions[mergeId];
 				
 				// Merge neighbours.
+                // 合并region
 				if (mergeRegions(target, reg))
 				{
 					// Fixup regions pointing to current region.
@@ -1010,6 +1049,7 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 							regions[j].id = mergeId;
 						// Replace the current region with the new one if the
 						// current regions is neighbour.
+                        // 用新id替换reg里connections和floors的旧id
 						replaceNeighbour(regions[j], oldId, mergeId);
 					}
 					mergeCount++;
@@ -1047,6 +1087,7 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 	maxRegionId = regIdGen;
 	
 	// Remap regions.
+    // 把每个span的regionId更换成新的regionId（原来rcRegion.id就是在regions中的索引，现在id变成了新的id）
 	for (int i = 0; i < chf.spanCount; ++i)
 	{
 		if ((srcReg[i] & RC_BORDER_REG) == 0)
@@ -1054,6 +1095,7 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 	}
 
 	// Return regions that we found to be overlapping.
+    // 返回重叠的region
 	for (int i = 0; i < nreg; ++i)
 		if (regions[i].overlap)
 			overlaps.push(regions[i].id);
@@ -1692,6 +1734,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 	}
 		
 	// Write the result out.
+    // 赋值到紧缩高度场
 	for (int i = 0; i < chf.spanCount; ++i)
 		chf.spans[i].reg = srcReg[i];
 	

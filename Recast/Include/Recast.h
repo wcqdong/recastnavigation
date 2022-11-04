@@ -387,9 +387,9 @@ struct rcHeightfieldLayerSet
 /// Represents a simple, non-overlapping contour in field space.
 struct rcContour
 {
-	int* verts;			///< Simplified contour vertex and connection data. [Size: 4 * #nverts]
+	int* verts;			///< Simplified contour vertex and connection data. [Size: 4 * #nverts] 简化点
 	int nverts;			///< The number of vertices in the simplified contour. 
-	int* rverts;		///< Raw contour vertex and connection data. [Size: 4 * #nrverts]
+	int* rverts;		///< Raw contour vertex and connection data. [Size: 4 * #nrverts]   轮廓点
 	int nrverts;		///< The number of vertices in the raw contour. 
 	unsigned short reg;	///< The region id of the contour.
 	unsigned char area;	///< The area id of the contour.
@@ -427,7 +427,7 @@ struct rcPolyMesh
 	int nverts;				///< The number of vertices.
 	int npolys;				///< The number of polygons.
 	int maxpolys;			///< The number of allocated polygons.
-	int nvp;				///< The maximum number of vertices per polygon.
+	int nvp;				///< The maximum number of vertices per polygon. 每个polygon最多的定点数
 	float bmin[3];			///< The minimum bounds in world space. [(x, y, z)]
 	float bmax[3];			///< The maximum bounds in world space. [(x, y, z)]
 	float cs;				///< The size of each cell. (On the xz-plane.)

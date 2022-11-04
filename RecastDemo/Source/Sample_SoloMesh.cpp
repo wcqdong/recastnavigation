@@ -589,6 +589,7 @@ bool Sample_SoloMesh::handleBuild()
 	
 	//
 	// Step 5. Trace and simplify region contours.
+    // 生成和简化轮廓
 	//
 	
 	// Create contours.

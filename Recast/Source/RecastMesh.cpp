@@ -999,9 +999,12 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 	mesh.ch = cset.ch;
 	mesh.borderSize = cset.borderSize;
 	mesh.maxEdgeError = cset.maxError;
-	
+
+    // 所有轮廓的顶点数
 	int maxVertices = 0;
+    // 所有可形成的三角形数
 	int maxTris = 0;
+    // 轮廓中最多顶点数
 	int maxVertsPerCont = 0;
 	for (int i = 0; i < cset.nconts; ++i)
 	{

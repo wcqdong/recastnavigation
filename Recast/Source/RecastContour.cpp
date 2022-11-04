@@ -31,15 +31,21 @@ static int getCornerHeight(int x, int y, int i, int dir,
 						   bool& isBorderVertex)
 {
 	const rcCompactSpan& s = chf.spans[i];
+    // span下表面高度
 	int ch = (int)s.y;
+    // 顺时针旋转后的方向
 	int dirp = (dir+1) & 0x3;
-	
+	// 例如dir=上，则regs[4]每个索引分别表示
+    // 0=自己 1=上 2=右上 3=右
+    // 每个索引里的int表示regionId与area的组合
 	unsigned int regs[4] = {0,0,0,0};
 	
 	// Combine region and area codes in order to prevent
 	// border vertices which are in between two areas to be removed.
+    // 把regionId和area组合成一个int
 	regs[0] = chf.spans[i].reg | (chf.areas[i] << 16);
-	
+
+    // 可行走的边界，即邻居为其他region
 	if (rcGetCon(s, dir) != RC_NOT_CONNECTED)
 	{
 		const int ax = x + rcGetDirOffsetX(dir);
@@ -106,6 +112,7 @@ static void walkContour(int x, int y, int i,
 						unsigned char* flags, rcIntArray& points)
 {
 	// Choose the first non-connected edge
+    // 找第一个边界
 	unsigned char dir = 0;
 	while ((flags[i] & (1 << dir)) == 0)
 		dir++;
@@ -118,6 +125,7 @@ static void walkContour(int x, int y, int i,
 	int iter = 0;
 	while (++iter < 40000)
 	{
+        // dir方向是边界，则保存轮廓点后，顺时针旋转后再循环尝试
 		if (flags[i] & (1 << dir))
 		{
 			// Choose the edge corner
@@ -126,11 +134,16 @@ static void walkContour(int x, int y, int i,
 			int px = x;
 			int py = getCornerHeight(x, y, i, dir, chf, isBorderVertex);
 			int pz = y;
+            // 为了使相邻region walk出来的轮廓一样，所以并不是以自身为轮廓，而是按照一下规则
 			switch(dir)
 			{
+                // 向左：取上
 				case 0: pz++; break;
+                // 向上：取右上
 				case 1: px++; pz++; break;
+                // 向右：取右
 				case 2: px++; break;
+                // 向下：取自身
 			}
 			int r = 0;
 			const rcCompactSpan& s = chf.spans[i];
@@ -140,6 +153,7 @@ static void walkContour(int x, int y, int i,
 				const int ay = y + rcGetDirOffsetY(dir);
 				const int ai = (int)chf.cells[ax+ay*chf.width].index + rcGetCon(s, dir);
 				r = (int)chf.spans[ai].reg;
+                // area的边界
 				if (area != chf.areas[ai])
 					isAreaBorder = true;
 			}
@@ -151,10 +165,13 @@ static void walkContour(int x, int y, int i,
 			points.push(py);
 			points.push(pz);
 			points.push(r);
-			
+
+            // 去掉该dir上的边界标记
 			flags[i] &= ~(1 << dir); // Remove visited edges
+            // 顺时针旋转dir
 			dir = (dir+1) & 0x3;  // Rotate CW
 		}
+        // 如果不是边界，则移动x y，并将dir逆时针旋转
 		else
 		{
 			int ni = -1;
@@ -174,6 +191,7 @@ static void walkContour(int x, int y, int i,
 			x = nx;
 			y = ny;
 			i = ni;
+            // 逆时针旋转dir
 			dir = (dir+3) & 0x3;	// Rotate CCW
 		}
 		
@@ -214,22 +232,29 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 	bool hasConnections = false;
 	for (int i = 0; i < points.size(); i += 4)
 	{
+        // point索引：0=x 1=y 2=z 3=r
+        // 在之前的walkContour中产生，r的低16位如果是0，说明边界是不可行走的，否则该point有邻居region
 		if ((points[i+3] & RC_CONTOUR_REG_MASK) != 0)
 		{
 			hasConnections = true;
 			break;
 		}
 	}
-	
+
+    // 如果轮廓有邻居region
 	if (hasConnections)
 	{
 		// The contour has some portals to other regions.
 		// Add a new point to every location where the region changes.
 		for (int i = 0, ni = points.size()/4; i < ni; ++i)
 		{
+            // 下一个point索引
 			int ii = (i+1) % ni;
+            // 邻近的两个轮廓点接壤不同的region
 			const bool differentRegs = (points[i*4+3] & RC_CONTOUR_REG_MASK) != (points[ii*4+3] & RC_CONTOUR_REG_MASK);
+            // 邻近的两个轮廓点里，一个接壤其他region，另一个接壤不可行走
 			const bool areaBorders = (points[i*4+3] & RC_AREA_BORDER) != (points[ii*4+3] & RC_AREA_BORDER);
+            // 总之邻近的两个轮廓点接壤不是同一个region，则记录这个点
 			if (differentRegs || areaBorders)
 			{
 				simplified.push(points[i*4+0]);
@@ -239,7 +264,8 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			}
 		}
 	}
-	
+
+    // 如果不连接任何region则没有simplified点，那么选择左下和右上的两个点作为simplified点
 	if (simplified.size() == 0)
 	{
 		// If there is no connections at all,
@@ -290,8 +316,9 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 	for (int i = 0; i < simplified.size()/4; )
 	{
 		int ii = (i+1) % (simplified.size()/4);
-		
-		int ax = simplified[i*4+0];
+
+        // simplified索引：0=x 1=y 2=z 3=在points中的索引
+        int ax = simplified[i*4+0];
 		int az = simplified[i*4+2];
 		int ai = simplified[i*4+3];
 
@@ -302,20 +329,27 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		// Find maximum deviation from the segment.
 		float maxd = 0;
 		int maxi = -1;
+        // ci、endi为points中的索引，cinc为索引每次遍历的偏移方向
+        // ci=从此索引开始遍历，endi=从此所以遍历结束
 		int ci, cinc, endi;
 
 		// Traverse the segment in lexilogical order so that the
 		// max deviation is calculated similarly when traversing
 		// opposite segments.
+        // 选择偏左下的点为遍历的起点，偏右上的点为遍历的终点
 		if (bx > ax || (bx == ax && bz > az))
 		{
+            // 沿着正方向
 			cinc = 1;
+            // 索引+1
 			ci = (ai+cinc) % pn;
 			endi = bi;
 		}
 		else
 		{
+            // 沿着负方向
 			cinc = pn-1;
+            // 索引-1
 			ci = (bi+cinc) % pn;
 			endi = ai;
 			rcSwap(ax, bx);
@@ -323,9 +357,11 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		}
 		
 		// Tessellate only outer edges or edges between areas.
+        // 不可行走边界或者region边界
 		if ((points[ci*4+3] & RC_CONTOUR_REG_MASK) == 0 ||
 			(points[ci*4+3] & RC_AREA_BORDER))
 		{
+            // 从ci到endi
 			while (ci != endi)
 			{
 				float d = distancePtSeg(points[ci*4+0], points[ci*4+2], ax, az, bx, bz);
@@ -346,6 +382,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			// Add space for the new point.
 			simplified.resize(simplified.size()+4);
 			const int n = simplified.size()/4;
+            // simplified i索引后面的point后移
 			for (int j = n-1; j > i; --j)
 			{
 				simplified[j*4+0] = simplified[(j-1)*4+0];
@@ -353,11 +390,13 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 				simplified[j*4+2] = simplified[(j-1)*4+2];
 				simplified[j*4+3] = simplified[(j-1)*4+3];
 			}
+            // 添加到i索引后面
 			// Add the point.
 			simplified[(i+1)*4+0] = points[maxi*4+0];
 			simplified[(i+1)*4+1] = points[maxi*4+1];
 			simplified[(i+1)*4+2] = points[maxi*4+2];
 			simplified[(i+1)*4+3] = maxi;
+            // i不++，下次遍历还是从i开始，ii为新插入的point
 		}
 		else
 		{
@@ -387,9 +426,11 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			// Tessellate only outer edges or edges between areas.
 			bool tess = false;
 			// Wall edges.
+            // 不可行走边界
 			if ((buildFlags & RC_CONTOUR_TESS_WALL_EDGES) && (points[ci*4+3] & RC_CONTOUR_REG_MASK) == 0)
 				tess = true;
 			// Edges between areas.
+            // region边界
 			if ((buildFlags & RC_CONTOUR_TESS_AREA_EDGES) && (points[ci*4+3] & RC_AREA_BORDER))
 				tess = true;
 			
@@ -397,14 +438,18 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			{
 				int dx = bx - ax;
 				int dz = bz - az;
+                // 超过长度
 				if (dx*dx + dz*dz > maxEdgeLen*maxEdgeLen)
 				{
 					// Round based on the segments in lexilogical order so that the
 					// max tesselation is consistent regardles in which direction
 					// segments are traversed.
+                    // ai与bi相差n个索引
 					const int n = bi < ai ? (bi+pn - ai) : (bi - ai);
+                    // n > 1，说明ai bi之间有轮廓点，可切分
 					if (n > 1)
 					{
+                        // maxi = ai bi中间的索引
 						if (bx > ax || (bx == ax && bz > az))
 							maxi = (ai + n/2) % pn;
 						else
@@ -415,6 +460,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			
 			// If the max deviation is larger than accepted error,
 			// add new point, else continue to next segment.
+            // maxi位置的point插入到simplified
 			if (maxi != -1)
 			{
 				// Add space for the new point.
@@ -432,6 +478,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 				simplified[(i+1)*4+1] = points[maxi*4+1];
 				simplified[(i+1)*4+2] = points[maxi*4+2];
 				simplified[(i+1)*4+3] = maxi;
+                // i不++，下次遍历继续二分
 			}
 			else
 			{
@@ -458,6 +505,8 @@ static int calcAreaOfPolygon2D(const int* verts, const int nverts)
 	{
 		const int* vi = &verts[i*4];
 		const int* vj = &verts[j*4];
+        // j < i
+        // vi叉乘vj，两个向量为邻边的平行四边形的有向面积，负值说明vj在vi的顺时针方向，正值说明vj在vi的逆时针方向，等于0说明共线
 		area += vi[0] * vj[2] - vj[0] * vi[2];
 	}
 	return (area+1) / 2;
@@ -468,6 +517,7 @@ static int calcAreaOfPolygon2D(const int* verts, const int nverts)
 inline int prev(int i, int n) { return i-1 >= 0 ? i-1 : n-1; }
 inline int next(int i, int n) { return i+1 < n ? i+1 : 0; }
 
+/// ab向量与ac向量的叉乘
 inline int area2(const int* a, const int* b, const int* c)
 {
 	return (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
@@ -484,6 +534,7 @@ inline bool xorb(bool x, bool y)
 
 // Returns true iff c is strictly to the left of the directed
 // line through a to b.
+/// ac向量是否在ab向量的逆时针方向
 inline bool left(const int* a, const int* b, const int* c)
 {
 	return area2(a, b, c) < 0;
@@ -542,6 +593,7 @@ static bool vequal(const int* a, const int* b)
 	return a[0] == b[0] && a[2] == b[2];
 }
 
+/// 遍历verts所有邻近两个点的连线，判断是否与d0 d1连线相交
 static bool intersectSegCountour(const int* d0, const int* d1, int i, int n, const int* verts)
 {
 	// For each edge (k,k+1) of P
@@ -576,7 +628,7 @@ static bool	inCone(int i, int n, const int* verts, const int* pj)
 	return !(leftOn(pi, pj, pi1) && leftOn(pj, pi, pin1));
 }
 
-
+/// 删除相邻的xz相等简化点
 static void removeDegenerateSegments(rcIntArray& simplified)
 {
 	// Remove adjacent vertices which are equal on xz-plane,
@@ -602,7 +654,7 @@ static void removeDegenerateSegments(rcIntArray& simplified)
 	}
 }
 
-
+/// 合并两个轮廓
 static bool mergeContours(rcContour& ca, rcContour& cb, int ia, int ib)
 {
 	const int maxVerts = ca.nverts + cb.nverts + 2;
@@ -662,11 +714,12 @@ struct rcContourRegion
 
 struct rcPotentialDiagonal
 {
-	int vert;
-	int dist;
+	int vert;   // 外轮廓点的索引
+	int dist;   // 与洞的左下点的距离
 };
 
 // Finds the lowest leftmost vertex of a contour.
+/// 找到最左下的的点和点的索引
 static void findLeftMostVertex(rcContour* contour, int* minx, int* minz, int* leftmost)
 {
 	*minx = contour->verts[0];
@@ -722,15 +775,19 @@ static int compareDiagDist(const void* va, const void* vb)
 static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 {
 	// Sort holes from left to right.
+    // 找到每个洞的最左下的点
 	for (int i = 0; i < region.nholes; i++)
 		findLeftMostVertex(region.holes[i].contour, &region.holes[i].minx, &region.holes[i].minz, &region.holes[i].leftmost);
-	
+
+    // 把洞按照最左下的点排序
 	qsort(region.holes, region.nholes, sizeof(rcContourHole), compareHoles);
-	
+
+    // 外轮廓和洞的定点数综合
 	int maxVerts = region.outline->nverts;
 	for (int i = 0; i < region.nholes; i++)
 		maxVerts += region.holes[i].contour->nverts;
-	
+
+    // 筛选出来的外轮廓点
 	rcScopedDelete<rcPotentialDiagonal> diags((rcPotentialDiagonal*)rcAlloc(sizeof(rcPotentialDiagonal)*maxVerts, RC_ALLOC_TEMP));
 	if (!diags)
 	{
@@ -758,9 +815,11 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 			// j o-----o j+1
 			//         :
 			int ndiags = 0;
+            // 洞最左下的轮廓点
 			const int* corner = &hole->verts[bestVertex*4];
 			for (int j = 0; j < outline->nverts; j++)
 			{
+                // 向内突出的点？
 				if (inCone(j, outline->nverts, outline->verts, corner))
 				{
 					int dx = outline->verts[j*4+0] - corner[0];
@@ -771,14 +830,20 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 				}
 			}
 			// Sort potential diagonals by distance, we want to make the connection as short as possible.
+            // 按距离排序
 			qsort(diags, ndiags, sizeof(rcPotentialDiagonal), compareDiagDist);
 			
 			// Find a diagonal that is not intersecting the outline not the remaining holes.
 			index = -1;
+            // 遍历筛选出来的外轮廓点与corner的连线，是否与外轮廓相交
 			for (int j = 0; j < ndiags; j++)
 			{
 				const int* pt = &outline->verts[diags[j].vert*4];
-				bool intersect = intersectSegCountour(pt, corner, diags[i].vert, outline->nverts, outline->verts);
+                // bug diags[i]改成diags[j]
+//				bool intersect = intersectSegCountour(pt, corner, diags[i].vert, outline->nverts, outline->verts);
+                // 是否与外轮廓相交
+				bool intersect = intersectSegCountour(pt, corner, diags[j].vert, outline->nverts, outline->verts);
+                // 是否与其他洞相交
 				for (int k = i; k < region.nholes && !intersect; k++)
 					intersect |= intersectSegCountour(pt, corner, -1, region.holes[k].contour->nverts, region.holes[k].contour->verts);
 				if (!intersect)
@@ -791,6 +856,7 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 			if (index != -1)
 				break;
 			// All the potential diagonals for the current vertex were intersecting, try next vertex.
+            // 最后发现洞上的bestVertex不能产生斜线，则换一个bestVertex
 			bestVertex = (bestVertex + 1) % hole->nverts;
 		}
 		
@@ -799,6 +865,7 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 			ctx->log(RC_LOG_WARNING, "mergeHoles: Failed to find merge points for %p and %p.", region.outline, hole);
 			continue;
 		}
+        // 合并外轮廓和洞
 		if (!mergeContours(*region.outline, *hole, index, bestVertex))
 		{
 			ctx->log(RC_LOG_WARNING, "mergeHoles: Failed to merge contours %p and %p.", region.outline, hole);
@@ -856,7 +923,8 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	if (!cset.conts)
 		return false;
 	cset.nconts = 0;
-	
+
+    // flags保存每个span四个方向（按位保存，1=是边界  0=不是边界）是否为边界
 	rcScopedDelete<unsigned char> flags((unsigned char*)rcAlloc(sizeof(unsigned char)*chf.spanCount, RC_ALLOC_TEMP));
 	if (!flags)
 	{
@@ -867,6 +935,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	ctx->startTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
 	
 	// Mark boundaries.
+    // 标记每个span四个方向的是否为边界
 	for (int y = 0; y < h; ++y)
 	{
 		for (int x = 0; x < w; ++x)
@@ -876,6 +945,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 			{
 				unsigned char res = 0;
 				const rcCompactSpan& s = chf.spans[i];
+                // 没有reg或者是边界
 				if (!chf.spans[i].reg || (chf.spans[i].reg & RC_BORDER_REG))
 				{
 					flags[i] = 0;
@@ -891,9 +961,11 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 						const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, dir);
 						r = chf.spans[ai].reg;
 					}
+                    // 相同region，则连通
 					if (r == chf.spans[i].reg)
 						res |= (1 << dir);
 				}
+                // 有边界标记为1
 				flags[i] = res ^ 0xf; // Inverse, mark non connected edges.
 			}
 		}
@@ -925,19 +997,24 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 				simplified.clear();
 				
 				ctx->startTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
+                // 构建轮廓点
 				walkContour(x, y, i, chf, flags, verts);
 				ctx->stopTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
 				
 				ctx->startTimer(RC_TIMER_BUILD_CONTOURS_SIMPLIFY);
+                // 简化轮廓
 				simplifyContour(verts, simplified, maxError, maxEdgeLen, buildFlags);
+                // 删除相邻的xz相等简化点
 				removeDegenerateSegments(simplified);
 				ctx->stopTimer(RC_TIMER_BUILD_CONTOURS_SIMPLIFY);
 				
 				
 				// Store region->contour remap info.
 				// Create contour.
+                // 轮廓信息保存到rcContour
 				if (simplified.size()/4 >= 3)
 				{
+                    // 扩容
 					if (cset.nconts >= maxContours)
 					{
 						// Allocate more contours.
@@ -1006,6 +1083,8 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	}
 	
 	// Merge holes if needed.
+    // 可能会形成“回”字形的轮廓范围，大“口”和小“口”为两个轮廓，其中小”口“轮廓里面的范围为不可行走
+    // 由于我们之前的形成轮廓点的规则是按照顺时针方向，那么大”口“的轮廓点索引肯定是顺时针增大，那么小“口”的轮廓点索引是逆时针增大，试一下就知道了
 	if (cset.nconts > 0)
 	{
 		// Calculate winding of all polygons.
@@ -1020,6 +1099,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 		{
 			rcContour& cont = cset.conts[i];
 			// If the contour is wound backwards, it is a hole.
+            // 小于0说明是逆时针
 			winding[i] = calcAreaOfPolygon2D(cont.verts, cont.nverts) < 0 ? -1 : 1;
 			if (winding[i] < 0)
 				nholes++;
