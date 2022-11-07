@@ -387,7 +387,7 @@ struct rcHeightfieldLayerSet
 /// Represents a simple, non-overlapping contour in field space.
 struct rcContour
 {
-	int* verts;			///< Simplified contour vertex and connection data. [Size: 4 * #nverts] 简化点
+	int* verts;			///< Simplified contour vertex and connection data. [Size: 4 * #nverts] 简化点x, y, z, r
 	int nverts;			///< The number of vertices in the simplified contour. 
 	int* rverts;		///< Raw contour vertex and connection data. [Size: 4 * #nrverts]   轮廓点
 	int nrverts;		///< The number of vertices in the raw contour. 

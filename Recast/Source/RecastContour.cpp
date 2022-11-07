@@ -93,9 +93,13 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		
 		// The vertex is a border vertex there are two same exterior cells in a row,
 		// followed by two interior cells and none of the regions are out of bounds.
+        // 自己和上的region和area相同，并且都是边界
 		const bool twoSameExts = (regs[a] & regs[b] & RC_BORDER_REG) != 0 && regs[a] == regs[b];
+        // 右和右上都不是边界
 		const bool twoInts = ((regs[c] | regs[d]) & RC_BORDER_REG) == 0;
+        // 右和右上area相同
 		const bool intsSameArea = (regs[c]>>16) == (regs[d]>>16);
+        //
 		const bool noZeros = regs[a] != 0 && regs[b] != 0 && regs[c] != 0 && regs[d] != 0;
 		if (twoSameExts && twoInts && intsSameArea && noZeros)
 		{
