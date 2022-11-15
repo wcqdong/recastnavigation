@@ -55,6 +55,8 @@ inline float vdist2(const float* p, const float* q)
 	return sqrtf(vdistSq2(p,q));
 }
 
+/// p1p2叉乘p1p3
+/// 根据右手定则，如果返回值大于0，则p1p3 在 p1p2的逆时针方向
 inline float vcross2(const float* p1, const float* p2, const float* p3)
 {
 	const float u1 = p2[0] - p1[0];
@@ -64,26 +66,36 @@ inline float vcross2(const float* p1, const float* p2, const float* p3)
 	return u1 * v2 - v1 * u2;
 }
 
+/// 求外接圆
 static bool circumCircle(const float* p1, const float* p2, const float* p3,
 						 float* c, float& r)
 {
 	static const float EPS = 1e-6f;
 	// Calculate the circle relative to p1, to avoid some precision issues.
 	const float v1[3] = {0,0,0};
+    // 向量v2 v3
 	float v2[3], v3[3];
 	rcVsub(v2, p2,p1);
 	rcVsub(v3, p3,p1);
 	
 	const float cp = vcross2(v1, v2, v3);
+    // 绝对值==0代表共线
+    // 如果不共线
 	if (fabsf(cp) > EPS)
 	{
 		const float v1Sq = vdot2(v1,v1);
 		const float v2Sq = vdot2(v2,v2);
 		const float v3Sq = vdot2(v3,v3);
+        // 求c(圆心坐标)和r(半径)公式
+        // https://blog.csdn.net/MallowFlower/article/details/79919797
+        // a=((y2-y1)*(y3*y3-y1*y1+x3*x3-x1*x1)-(y3-y1)*(y2*y2-y1*y1+x2*x2-x1*x1))/(2.0*((x3-x1)*(y2-y1)-(x2-x1)*(y3-y1)));
+        // b=((x2-x1)*(x3*x3-x1*x1+y3*y3-y1*y1)-(x3-x1)*(x2*x2-x1*x1+y2*y2-y1*y1))/(2.0*((y3-y1)*(x2-x1)-(y2-y1)*(x3-x1)));
+        // r^2=(x1-a)*(x1-a)+(y1-b)*(y1-b);（此处为r的平方）
 		c[0] = (v1Sq*(v2[2]-v3[2]) + v2Sq*(v3[2]-v1[2]) + v3Sq*(v1[2]-v2[2])) / (2*cp);
 		c[1] = 0;
 		c[2] = (v1Sq*(v3[0]-v2[0]) + v2Sq*(v1[0]-v3[0]) + v3Sq*(v2[0]-v1[0])) / (2*cp);
 		r = vdist2(c, v1);
+        // 圆心偏移p1
 		rcVadd(c, c, p1);
 		return true;
 	}
@@ -182,6 +194,7 @@ static float distToTriMesh(const float* p, const float* verts, const int /*nvert
 	return dmin;
 }
 
+/// 到每个边最短的的距离
 static float distToPoly(int nvert, const float* verts, const float* p)
 {
 	
@@ -215,9 +228,12 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 		// Walk adjacent cells in a spiral up to 'radius', and look
 		// for a pixel which has a valid height.
 		int x = 1, z = 0, dx = 1, dz = 0;
+        // maxSize是直径
 		int maxSize = radius * 2 + 1;
+        // maxIter是面积，遍历maxIter这么大范围
 		int maxIter = maxSize * maxSize - 1;
 
+        // 一圈一圈遍历
 		int nextRingIterStart = 8;
 		int nextRingIters = 16;
 
@@ -232,6 +248,7 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 				const unsigned short nh = hp.data[nx + nz*hp.width];
 				if (nh != RC_UNSET_HEIGHT)
 				{
+                    // 与fy相差最小的距离
 					const float d = fabsf(nh*ch - fy);
 					if (d < dmin)
 					{
@@ -258,15 +275,19 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 			// can be thought of as adding 2 cells around the "center" of each side when we expand the ring.
 			// Here we detect if we are about to enter the next ring, and if we are and we have found
 			// a height, we abort the search.
+            // 一圈结束，扩圈
 			if (i + 1 == nextRingIterStart)
 			{
 				if (h != RC_UNSET_HEIGHT)
 					break;
 
+                // nextRingIterStart每次+nextRingIters，+16 +24 +32 +40……
 				nextRingIterStart += nextRingIters;
+                // 每一圈多8个，nextRingIters每次+8， 16 24 32 40……
 				nextRingIters += 8;
 			}
 
+            // 拐弯
 			if ((x == z) || ((x < 0) && (x == -z)) || ((x > 0) && (x == 1 - z)))
 			{
 				int tmp = dx;
@@ -345,6 +366,7 @@ static int overlapSegSeg2d(const float* a, const float* b, const float* c, const
 	return 0;
 }
 
+/// 判断s1t1线是否与edges里的边共线
 static bool overlapEdges(const float* pts, const int* edges, int nedges, int s1, int t1)
 {
 	for (int i = 0; i < nedges; ++i)
@@ -363,7 +385,8 @@ static bool overlapEdges(const float* pts, const int* edges, int nedges, int s1,
 static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges, int& nedges, const int maxEdges, int& nfaces, int e)
 {
 	static const float EPS = 1e-5f;
-	
+
+    // edge里有四个元素 j i EdgeValues EdgeValues
 	int* edge = &edges[e*4];
 	
 	// Cache s and t.
@@ -388,25 +411,31 @@ static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges
 	int pt = npts;
 	float c[3] = {0,0,0};
 	float r = -1;
+    // 找到最小的外接圆
 	for (int u = 0; u < npts; ++u)
 	{
 		if (u == s || u == t) continue;
+        // 在edge边的左边
 		if (vcross2(&pts[s*3], &pts[t*3], &pts[u*3]) > EPS)
 		{
 			if (r < 0)
 			{
 				// The circle is not updated yet, do it now.
 				pt = u;
+                // 求外接圆
 				circumCircle(&pts[s*3], &pts[t*3], &pts[u*3], c, r);
 				continue;
 			}
+            // 圆心的到u点的距离
 			const float d = vdist2(c, &pts[u*3]);
 			const float tol = 0.001f;
+            // 在上一次遍历得到的c r外接圆以外，则继续下一次遍历
 			if (d > r*(1+tol))
 			{
 				// Outside current circumcircle, skip.
 				continue;
 			}
+            // 说明外接圆更小，求以这个点与edge形成的最小外接圆
 			else if (d < r*(1-tol))
 			{
 				// Inside safe circumcircle, update circle.
@@ -429,6 +458,7 @@ static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges
 	}
 	
 	// Add new triangle or update edge info if s-t is on hull.
+    // 如果有与st组成的三角形的最小外接圆，则新加两个表pt->s和t->pt
 	if (pt < npts)
 	{
 		// Update face information of edge being completed.
@@ -464,7 +494,8 @@ static void delaunayHull(rcContext* ctx, const int npts, const float* pts,
 	int nedges = 0;
 	const int maxEdges = npts*10;
 	edges.resize(maxEdges*4);
-	
+
+    // 生成边，填充到edges，每个edge元素占4个长度，保存点索引 j i EV_HULL EV_UNDEF
 	for (int i = 0, j = nhull-1; i < nhull; j=i++)
 		addEdge(ctx, &edges[0], nedges, maxEdges, hull[j],hull[i], EV_HULL, EV_UNDEF);
 	
@@ -533,6 +564,8 @@ static void delaunayHull(rcContext* ctx, const int npts, const float* pts,
 }
 
 // Calculate minimum extend of the polygon.
+// verts中两个点组成边，其他vert到这个边的最远距离maxEdgeDist
+// maxEdgeDist中的最小距离为poly的最小延展
 static float polyMinExtent(const float* verts, const int nverts)
 {
 	float minDist = FLT_MAX;
@@ -545,9 +578,11 @@ static float polyMinExtent(const float* verts, const int nverts)
 		for (int j = 0; j < nverts; j++)
 		{
 			if (j == i || j == ni) continue;
+            // 顶点到p1p2线的距离
 			float d = distancePtSeg2d(&verts[j*3], p1,p2);
 			maxEdgeDist = rcMax(maxEdgeDist, d);
 		}
+        // 选择距离最小的
 		minDist = rcMin(minDist, maxEdgeDist);
 	}
 	return rcSqrt(minDist);
@@ -563,6 +598,7 @@ static void triangulateHull(const int /*nverts*/, const float* verts, const int 
 	
 	// Start from an ear with shortest perimeter.
 	// This tends to favor well formed triangles as starting point.
+    // 先找一个面积最小的
 	float dmin = FLT_MAX;
 	for (int i = 0; i < nhull; i++)
 	{
@@ -572,6 +608,7 @@ static void triangulateHull(const int /*nverts*/, const float* verts, const int 
 		const float* pv = &verts[hull[pi]*3];
 		const float* cv = &verts[hull[i]*3];
 		const float* nv = &verts[hull[ni]*3];
+        // 三个边的距离
 		const float d = vdist2(pv,cv) + vdist2(cv,nv) + vdist2(nv,pv);
 		if (d < dmin)
 		{
@@ -592,6 +629,7 @@ static void triangulateHull(const int /*nverts*/, const float* verts, const int 
 	// depending on which triangle has shorter perimeter.
 	// This heuristic was chose emprically, since it seems
 	// handle tesselated straight edges well.
+    // 沿着left移动，比较left、left的left、right、right的right四个点，以left-right为边的两个三角形中面积小的三角形切下来，继续遍历
 	while (next(left, nhull) != right)
 	{
 		// Check to see if se should advance left or right.
@@ -635,6 +673,11 @@ inline float getJitterY(const int i)
 	return (((i * 0xd8163841) & 0xffff) / 65535.0f * 2.0f) - 1.0f;
 }
 
+/// #in 多边形的点
+/// #nin 多边形的点个数
+/// #verts 拆分后的多边形顶点
+/// #nverts 拆分后的多边形顶点数
+/// #tris 多边形三角形化后的三角形顶点
 static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 							const float sampleDist, const float sampleMaxError,
 							const int heightSearchRadius, const rcCompactHeightfield& chf,
@@ -645,11 +688,13 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 	static const int MAX_TRIS = 255;	// Max tris for delaunay is 2n-2-k (n=num verts, k=num hull verts).
 	static const int MAX_VERTS_PER_EDGE = 32;
 	float edge[(MAX_VERTS_PER_EDGE+1)*3];
+    // 新的所有顶点的索引
 	int hull[MAX_VERTS];
 	int nhull = 0;
 	
 	nverts = nin;
-	
+
+    // poly的所有顶点放入verts
 	for (int i = 0; i < nin; ++i)
 		rcVcopy(&verts[i*3], &in[i*3]);
 	
@@ -667,6 +712,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 	// seamless height values across the ply boundaries.
 	if (sampleDist > 0)
 	{
+        // 每次遍历处理一条边
 		for (int i = 0, j = nin-1; i < nin; j=i++)
 		{
 			const float* vj = &in[j*3];
@@ -695,11 +741,13 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			float dy = vi[1] - vj[1];
 			float dz = vi[2] - vj[2];
 			float d = sqrtf(dx*dx + dz*dz);
+            // 采样个数
 			int nn = 1 + (int)floorf(d/sampleDist);
 			if (nn >= MAX_VERTS_PER_EDGE) nn = MAX_VERTS_PER_EDGE-1;
 			if (nverts+nn >= MAX_VERTS)
 				nn = MAX_VERTS-1-nverts;
-			
+
+            // edge按采样点切分
 			for (int k = 0; k <= nn; ++k)
 			{
 				float u = (float)k/(float)nn;
@@ -707,6 +755,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 				pos[0] = vj[0] + dx*u;
 				pos[1] = vj[1] + dy*u;
 				pos[2] = vj[2] + dz*u;
+                // 获得heightSearchRadius半径范围内与pos[1]最接近的高度
 				pos[1] = getHeight(pos[0],pos[1],pos[2], cs, ics, chf.ch, heightSearchRadius, hp)*chf.ch;
 			}
 			// Simplify samples.
@@ -721,6 +770,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 				// Find maximum deviation along the segment.
 				float maxd = 0;
 				int maxi = -1;
+                // 遍历a和b之间的采样点，找到与ab线距离最远的点
 				for (int m = a+1; m < b; ++m)
 				{
 					float dev = distancePtSeg(&edge[m*3],va,vb);
@@ -732,10 +782,13 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 				}
 				// If the max deviation is larger than accepted error,
 				// add new point, else continue to next segment.
+                // 把最远点插入到idx
 				if (maxi != -1 && maxd > rcSqr(sampleMaxError))
 				{
+                    // k之后的后移
 					for (int m = nidx; m > k; --m)
 						idx[m] = idx[m-1];
+                    // 插入到k+1位置
 					idx[k+1] = maxi;
 					nidx++;
 				}
@@ -779,6 +832,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 	// We're using the triangulateHull instead of delaunayHull as it tends to
 	// create a bit better triangulation for long thin triangles when there
 	// are no internal points.
+    // 三角形化
 	triangulateHull(nverts, verts, nhull, hull, nin, tris);
 	
 	if (tris.size() == 0)
@@ -791,6 +845,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 	if (sampleDist > 0)
 	{
 		// Create sample locations in a grid.
+        // 多边形的包围盒
 		float bmin[3], bmax[3];
 		rcVcopy(bmin, in);
 		rcVcopy(bmax, in);
@@ -810,9 +865,11 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			{
 				float pt[3];
 				pt[0] = x*sampleDist;
+                // 高度取平均数，先给一个初始值，后面的getHeight会取更精确的值
 				pt[1] = (bmax[1]+bmin[1])*0.5f;
 				pt[2] = z*sampleDist;
 				// Make sure the samples are not too close to the edges.
+                // 与poly的距离
 				if (distToPoly(nin,in,pt) > -sampleDist/2) continue;
 				samples.push(x);
 				samples.push(getHeight(pt[0], pt[1], pt[2], cs, ics, chf.ch, heightSearchRadius, hp));
@@ -824,6 +881,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 		// Add the samples starting from the one that has the most
 		// error. The procedure stops when all samples are added
 		// or when the max error is within treshold.
+        // 采样点的个数（/4因为每个点四个元素x y z added(是否为插入点))
 		const int nsamples = samples.size()/4;
 		for (int iter = 0; iter < nsamples; ++iter)
 		{
@@ -841,6 +899,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 				float pt[3];
 				// The sample location is jittered to get rid of some bad triangulations
 				// which are cause by symmetrical data from the grid structure.
+                // jitter加入一些抖动
 				pt[0] = s[0]*sampleDist + getJitterX(i)*cs*0.1f;
 				pt[1] = s[1]*chf.ch;
 				pt[2] = s[2]*sampleDist + getJitterY(i)*cs*0.1f;
@@ -864,6 +923,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			
 			// Create new triangulation.
 			// TODO: Incremental add instead of full rebuild.
+            // 清理掉，重新剖分
 			edges.clear();
 			tris.clear();
 			delaunayHull(ctx, nverts, verts, nhull, hull, tris, edges);
@@ -1021,6 +1081,7 @@ static void push3(rcIntArray& queue, int v1, int v2, int v3)
 	queue[queue.size() - 1] = v3;
 }
 
+/// 根据高度场把hp.data赋值上高度
 static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 						  const unsigned short* poly, const int npoly,
 						  const unsigned short* verts, const int bs,
@@ -1043,6 +1104,7 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 	{
 		// Copy the height from the same region, and mark region borders
 		// as seed points to fill the rest.
+        // 遍历poly包围盒内所有的点，把region边界保存到queue
 		for (int hy = 0; hy < hp.height; hy++)
 		{
 			int y = hp.ymin + hy + bs;
@@ -1056,6 +1118,7 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 					if (s.reg == region)
 					{
 						// Store height
+                        // 设置高度
 						hp.data[hx + hy*hp.width] = s.y;
 						empty = false;
 
@@ -1077,6 +1140,7 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 								}
 							}
 						}
+                        // 把region边界保存到queue
 						if (border)
 							push3(queue, x, y, i);
 						break;
@@ -1098,6 +1162,7 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 	// We assume the seed is centered in the polygon, so a BFS to collect
 	// height data will ensure we do not move onto overlapping polygons and
 	// sample wrong heights.
+    // 遍历边界
 	while (head*3 < queue.size())
 	{
 		int cx = queue[head*3+0];
@@ -1119,12 +1184,14 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 			
 			const int ax = cx + rcGetDirOffsetX(dir);
 			const int ay = cy + rcGetDirOffsetY(dir);
+            // 相对索引
 			const int hx = ax - hp.xmin - bs;
 			const int hy = ay - hp.ymin - bs;
 			
 			if ((unsigned int)hx >= (unsigned int)hp.width || (unsigned int)hy >= (unsigned int)hp.height)
 				continue;
-			
+
+            // 已经设置过高度了
 			if (hp.data[hx + hy*hp.width] != RC_UNSET_HEIGHT)
 				continue;
 			
@@ -1138,6 +1205,7 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 	}
 }
 
+/// 如果va和vb与poly的某个边重合，则说明vavb这条边经过采样之后，保留了原来的样子
 static unsigned char getEdgeFlags(const float* va, const float* vb,
 								  const float* vpoly, const int npoly)
 {
@@ -1192,6 +1260,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 	rcIntArray samples(512);
 	float verts[256*3];
 	rcHeightPatch hp;
+    // 所有poly的定点数
 	int nPolyVerts = 0;
 	int maxhw = 0, maxhh = 0;
 	
@@ -1209,6 +1278,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 	}
 	
 	// Find max size for a polygon area.
+    // 找到每个poly的包围盒
 	for (int i = 0; i < mesh.npolys; ++i)
 	{
 		const unsigned short* p = &mesh.polys[i*nvp*2];
@@ -1280,6 +1350,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		
 		// Store polygon vertices for processing.
 		int npoly = 0;
+        // poly保存该多边形的float顶点
 		for (int j = 0; j < nvp; ++j)
 		{
 			if(p[j] == RC_MESH_NULL_IDX) break;
@@ -1332,6 +1403,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		dmesh.meshes[i*4+3] = (unsigned int)ntris;
 		
 		// Store vertices, allocate more memory if necessary.
+        // 给dmesh.verts扩容
 		if (dmesh.nverts+nverts > vcap)
 		{
 			while (dmesh.nverts+nverts > vcap)
@@ -1357,6 +1429,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		}
 		
 		// Store triangles, allocate more memory if necessary.
+        //  给dmesh.tris扩容
 		if (dmesh.ntris+ntris > tcap)
 		{
 			while (dmesh.ntris+ntris > tcap)
