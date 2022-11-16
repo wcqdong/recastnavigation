@@ -427,6 +427,7 @@ void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
 	
 	
 	// TODO: Optimize.
+    // 遍历多边形范围内的体素
 	for (int z = minz; z <= maxz; ++z)
 	{
 		for (int x = minx; x <= maxx; ++x)
@@ -444,6 +445,7 @@ void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
 					p[1] = 0;
 					p[2] = chf.bmin[2] + (z+0.5f)*chf.cs; 
 
+                    // 点是否在poly内
 					if (pointInPoly(nverts, verts, p))
 					{
 						chf.areas[i] = areaId;

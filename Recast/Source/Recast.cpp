@@ -470,7 +470,8 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	const int MAX_HEIGHT = 0xffff;
 	
 	// Fill in cells and spans.
-	int idx = 0;
+    // 把地图上所有可行走的span填充到spans
+    int idx = 0;
 	for (int y = 0; y < h; ++y)
 	{
 		for (int x = 0; x < w; ++x)
