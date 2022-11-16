@@ -348,7 +348,7 @@ void rcMarkWalkableTriangles(rcContext* ctx, const float walkableSlopeAngle,
 
     // 三角形面的法向量
 	float norm[3];
-	
+
 	for (int i = 0; i < nt; ++i)
 	{
         // 三角形三个顶点的索引

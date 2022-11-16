@@ -109,27 +109,32 @@ static bool addSpan(rcHeightfield& hf, const int x, const int y,
 	// Insert and merge spans.
 	while (cur)
 	{
+        // s在cur下面
 		if (cur->smin > s->smax)
 		{
 			// Current span is further than the new span, break.
 			break;
 		}
+        // s在cur上面
 		else if (cur->smax < s->smin)
 		{
 			// Current span is before the new span advance.
 			prev = cur;
 			cur = cur->next;
 		}
+        // 重叠了
 		else
 		{
 			// Merge spans.
-			if (cur->smin < s->smin)
+            // 合并smin和smax
+            if (cur->smin < s->smin)
 				s->smin = cur->smin;
 			if (cur->smax > s->smax)
 				s->smax = cur->smax;
 			
 			// Merge flags.
-			if (rcAbs((int)s->smax - (int)cur->smax) <= flagMergeThr)
+            // 合并area标志，如果一个span比另一个span高出walkableClimb，则可行走
+            if (rcAbs((int)s->smax - (int)cur->smax) <= flagMergeThr)
 				s->area = rcMax(s->area, cur->area);
 			
 			// Remove current span.
@@ -139,7 +144,8 @@ static bool addSpan(rcHeightfield& hf, const int x, const int y,
 				prev->next = next;
 			else
 				hf.spans[idx] = next;
-			cur = next;
+            // 可能s跨越多个span，所以继续遍历
+            cur = next;
 		}
 	}
 	
@@ -186,32 +192,44 @@ static void dividePoly(const float* in, int nin,
 					  float* out2, int* nout2,
 					  float x, int axis)
 {
+    // 最多产生7边形，为什么数组大小为12？？？？？
 	float d[12];
-	for (int i = 0; i < nin; ++i)
+    // 放入输入点到切割线的距离，d[n]为x到点的距离距离,注意下面是x 【-】 in[i*3+axis]，所以d[n]>0在【左】，d[n]<0在【右】
+    for (int i = 0; i < nin; ++i)
 		d[i] = x - in[i*3+axis];
 
-	int m = 0, n = 0;
-	for (int i = 0, j = nin-1; i < nin; j=i, ++i)
+    // m为【左】多边形点的索引，n为【右】多边形点的索引
+    int m = 0, n = 0;
+    // 遍历所有的边与切割线的相交关系，i和j两个点即为一条边
+    for (int i = 0, j = nin-1; i < nin; j=i, ++i)
 	{
-		bool ina = d[j] >= 0;
-		bool inb = d[i] >= 0;
-		if (ina != inb)
+        // 上一个点是否切割线【左】方向，第一个点的上一个点为最后一个点
+        bool ina = d[j] >= 0;
+        // 当前点是否在切割线【左】
+        bool inb = d[i] >= 0;
+        // 如果i j在切割线两边，则新产生一个顶点，即切割点，切割点属于被切开的两个多边形，所以out1和out2中都要加入此切割点
+        if (ina != inb)
 		{
-			float s = d[j] / (d[j] - d[i]);
-			out1[m*3+0] = in[j*3+0] + (in[i*3+0] - in[j*3+0])*s;
+            // s为切割线线把i和j分割的比例，j占i+j的比例，(d[j] - d[i])=j到i的距离
+            float s = d[j] / (d[j] - d[i]);
+            // 切割点的三维坐标，根据距离比例算出来
+            out1[m*3+0] = in[j*3+0] + (in[i*3+0] - in[j*3+0])*s;
 			out1[m*3+1] = in[j*3+1] + (in[i*3+1] - in[j*3+1])*s;
 			out1[m*3+2] = in[j*3+2] + (in[i*3+2] - in[j*3+2])*s;
-			rcVcopy(out2 + n*3, out1 + m*3);
+            // 新产生的切割点，要放在两个多边形里
+            rcVcopy(out2 + n*3, out1 + m*3);
 			m++;
 			n++;
 			// add the i'th point to the right polygon. Do NOT add points that are on the dividing line
 			// since these were already added above
-			if (d[i] > 0)
+            // 当前点在【左】，把d[i]对应的点放入【左】多边形
+            if (d[i] > 0)
 			{
 				rcVcopy(out1 + m*3, in + i*3);
 				m++;
 			}
-			else if (d[i] < 0)
+            // 当前点在【右】，把d[i]对应的点放入【右】多边形
+            else if (d[i] < 0)
 			{
 				rcVcopy(out2 + n*3, in + i*3);
 				n++;
@@ -262,30 +280,42 @@ static bool rasterizeTri(const float* v0, const float* v1, const float* v2,
 		return true;
 	
 	// Calculate the footprint of the triangle on the grid's y-axis
+    // 先不考虑y轴，把三角形平铺在xz面上，y0，y1位二维平面上 以cs为单位的高度
 	int y0 = (int)((tmin[2] - bmin[2])*ics);
 	int y1 = (int)((tmax[2] - bmin[2])*ics);
 	y0 = rcClamp(y0, 0, h-1);
 	y1 = rcClamp(y1, 0, h-1);
 	
 	// Clip the triangle into all grid cells it touches.
+    // 申请一块7*3*4个float长度的内存，其实是为了内存连续的性能优化
+    // 4的意义:下面的in inrow p1 p2四份等长数据，这些数据里存的是多边形，即顶点坐标
+    // 3的意义:存的是顶点，所以3个float， x y z
+    // 7的意义:对三角形切割时，切出来的一个格子，最多可变成一个7边形
 	float buf[7*3*4];
 	float *in = buf, *inrow = buf+7*3, *p1 = inrow+7*3, *p2 = p1+7*3;
 
 	rcVcopy(&in[0], v0);
 	rcVcopy(&in[1*3], v1);
 	rcVcopy(&in[2*3], v2);
+    // 初始为三角形，所以定点数为3
 	int nvrow, nvIn = 3;
-	
+
+    // y轴上从低到高切割
 	for (int y = y0; y <= y1; ++y)
 	{
 		// Clip polygon to row. Store the remaining polygon as well
 		const float cz = bmin[2] + y*cs;
-		dividePoly(in, nvIn, inrow, &nvrow, p1, &nvIn, cz+cs, 2);
+        // 多边形切割，按照z轴cz+cs切割，inrow p1为切割后的多边形，其中inrow为位于切割线下面的多边形，p1为切割线上线的多边形
+        dividePoly(in, nvIn, inrow, &nvrow, p1, &nvIn, cz+cs, 2);
+        // inrow为切割后的一般，p1为切割后的另一半，inrow在本次循环内按x0到x1切割完成，另一半p1下次循环在进行切分
+        // 所以p1和in交换下 下次再切分in即p1
 		rcSwap(in, p1);
-		if (nvrow < 3) continue;
+        // 这次要处理的这一半多边形没切到东西，可能切到了in（多边形）的一个顶点或者与y轴平行的一条边，顶点和边没必要体素化，所以continue
+        if (nvrow < 3) continue;
 		
 		// find the horizontal bounds in the row
 		float minX = inrow[0], maxX = inrow[0];
+        // 遍历inrow多边形的顶点，找到最小x和最大x
 		for (int i=1; i<nvrow; ++i)
 		{
 			if (minX > inrow[i*3])	minX = inrow[i*3];
@@ -298,21 +328,30 @@ static bool rasterizeTri(const float* v0, const float* v1, const float* v2,
 
 		int nv, nv2 = nvrow;
 
+        // x轴上从左到右切割
 		for (int x = x0; x <= x1; ++x)
 		{
 			// Clip polygon to column. store the remaining polygon as well
 			const float cx = bmin[0] + x*cs;
+            // 看到传入的参数有点懵，上面的第一次调用没注意
+            // 仔细看p1 p2，这两个位置的形参一直被当做空数组，原来返回切割后的两个多边形，上面已经把in和p1兑换，此时p1实际为in，in的实际内存空间当成空数组p1重用
+            // nv2用来告诉dividePoly方法inrow的长度，&nv &nv2作用是返回参数，&nv2被修改后作为下一次遍历inrow的长度nv2
 			dividePoly(inrow, nv2, p1, &nv, p2, &nv2, cx+cs, 0);
+            // p1为切割线左边的多边形，p2为切割线右边的多边形，此时p1已经被切割完毕（已经是一个格子内的多边形了）
+            // p2还没切割完成，与inrow交换，下次遍历切割
 			rcSwap(inrow, p2);
+            // p1没切出多边形，则不进行下面的体素处理
 			if (nv < 3) continue;
 			
 			// Calculate min and max of the span.
+            // 多边形p1的最低高度，最高高度
 			float smin = p1[1], smax = p1[1];
 			for (int i = 1; i < nv; ++i)
 			{
 				smin = rcMin(smin, p1[i*3+1]);
 				smax = rcMax(smax, p1[i*3+1]);
 			}
+            // 包围盒的最低高度和最高高度
 			smin -= bmin[1];
 			smax -= bmin[1];
 			// Skip the span if it is outside the heightfield bbox
@@ -323,6 +362,7 @@ static bool rasterizeTri(const float* v0, const float* v1, const float* v2,
 			if (smax > by) smax = by;
 			
 			// Snap the span to the heightfield height grid.
+            // 包围盒最低体素，最高体素
 			unsigned short ismin = (unsigned short)rcClamp((int)floorf(smin * ich), 0, RC_SPAN_MAX_HEIGHT);
 			unsigned short ismax = (unsigned short)rcClamp((int)ceilf(smax * ich), (int)ismin+1, RC_SPAN_MAX_HEIGHT);
 			
