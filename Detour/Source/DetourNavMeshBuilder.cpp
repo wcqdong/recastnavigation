@@ -363,7 +363,9 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	const int totVertCount = params->vertCount + storedOffMeshConCount*2;
 	
 	// Find portal edges which are at tile borders.
+	// 边的个数
 	int edgeCount = 0;
+	// 邻接边的个数
 	int portalCount = 0;
 	for (int i = 0; i < params->polyCount; ++i)
 	{
@@ -385,8 +387,10 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	const int maxLinkCount = edgeCount + portalCount*2 + offMeshConLinkCount*2;
 	
 	// Find unique detail vertices.
+	// detail的顶点数（减去poly顶点的顶点数）
 	int uniqueDetailVertCount = 0;
 	int detailTriCount = 0;
+	// 如果有detail，则把detail里的顶点数也算进去
 	if (params->detailMeshes)
 	{
 		// Has detail mesh, count unique detail vertex count and use input detail tri count.
@@ -394,6 +398,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		for (int i = 0; i < params->polyCount; ++i)
 		{
 			const unsigned short* p = &params->polys[i*nvp*2];
+			// 顶点数量
 			int ndv = params->detailMeshes[i*4+1];
 			int nv = 0;
 			for (int j = 0; j < nvp; ++j)
@@ -424,6 +429,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	}
 	
 	// Calculate data size
+	// 计算数据大小，并4字节对齐
 	const int headerSize = dtAlign4(sizeof(dtMeshHeader));
 	const int vertsSize = dtAlign4(sizeof(float)*3*totVertCount);
 	const int polysSize = dtAlign4(sizeof(dtPoly)*totPolyCount);

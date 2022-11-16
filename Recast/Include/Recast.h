@@ -441,7 +441,7 @@ struct rcPolyMesh
 /// @ingroup recast
 struct rcPolyMeshDetail
 {
-	unsigned int* meshes;	///< The sub-mesh data. [Size: 4*#nmeshes] 
+	unsigned int* meshes;	///< The sub-mesh data. [Size: 4*#nmeshes] 顶点的起始索引,顶点个数,三角形的起始索引,三角形的个数……
 	float* verts;			///< The mesh vertices. [Size: 3*#nverts] 
 	unsigned char* tris;	///< The mesh triangles. [Size: 4*#ntris] 
 	int nmeshes;			///< The number of sub-meshes defined by #meshes.

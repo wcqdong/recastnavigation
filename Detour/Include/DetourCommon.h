@@ -460,7 +460,7 @@ inline unsigned int dtIlog2(unsigned int v)
 	r |= (v >> 1);
 	return r;
 }
-
+/// 对齐4字节大小
 inline int dtAlign4(int x) { return (x+3) & ~3; }
 
 inline int dtOppositeTile(int side) { return (side+4) & 0x7; }
