@@ -126,7 +126,7 @@ static bool addSpan(rcHeightfield& hf, const int x, const int y,
 		else
 		{
 			// Merge spans.
-            // 合并smin和smax
+            // 合并smin和smax，cur和s中的最低smin和最高smax
             if (cur->smin < s->smin)
 				s->smin = cur->smin;
 			if (cur->smax > s->smax)
@@ -150,11 +150,13 @@ static bool addSpan(rcHeightfield& hf, const int x, const int y,
 	}
 	
 	// Insert new span.
+    // 插入到prev之后
 	if (prev)
 	{
 		s->next = prev->next;
 		prev->next = s;
 	}
+    // 插入到最前面
 	else
 	{
 		s->next = hf.spans[idx];
@@ -185,16 +187,31 @@ bool rcAddSpan(rcContext* ctx, rcHeightfield& hf, const int x, const int y,
 
 	return true;
 }
-
+/**
+ * 多边形切割
+ * 切割线x把多边形切割成两个多边形，一个在x左边，一个在x右边
+ *
+ *
+ * @param in 多边形
+ * @param nin 输入点的个数,意味着此次切割的是几边形
+ * @param out1 切割后左边的多边形
+ * @param nout1 切割后左边多边形的顶点数
+ * @param out2 切割后右边的多边形
+ * @param nout2 切割后右边多边形的顶点数
+ * @param x 切割线
+ * @param axis 轴，0=x轴，1=y轴，2=z轴，先假设axis=0
+ */
 // divides a convex polygons into two convex polygons on both sides of a line
 static void dividePoly(const float* in, int nin,
 					  float* out1, int* nout1,
 					  float* out2, int* nout2,
 					  float x, int axis)
 {
+
     // 最多产生7边形，为什么数组大小为12？？？？？
 	float d[12];
-    // 放入输入点到切割线的距离，d[n]为x到点的距离距离,注意下面是x 【-】 in[i*3+axis]，所以d[n]>0在【左】，d[n]<0在【右】
+    // d中保存的是in中的在axis轴顶点到切割线的axis轴距离
+    // 放入输入点到切割线的距离，d[n]为x到点的距离,注意下面是x 【-】 in[i*3+axis]，所以d[n]>0在【左】，d[n]<0在【右】
     for (int i = 0; i < nin; ++i)
 		d[i] = x - in[i*3+axis];
 
@@ -207,6 +224,7 @@ static void dividePoly(const float* in, int nin,
         bool ina = d[j] >= 0;
         // 当前点是否在切割线【左】
         bool inb = d[i] >= 0;
+        // different side
         // 如果i j在切割线两边，则新产生一个顶点，即切割点，切割点属于被切开的两个多边形，所以out1和out2中都要加入此切割点
         if (ina != inb)
 		{
@@ -238,6 +256,7 @@ static void dividePoly(const float* in, int nin,
 		else // same side
 		{
 			// add the i'th point to the right polygon. Addition is done even for points on the dividing line
+            // 只判断i，i加入左边或者右边，不处理j的原因是j就是上一次遍历中i，即j已经在上次处理过了
 			if (d[i] >= 0)
 			{
 				rcVcopy(out1 + m*3, in + i*3);
@@ -280,7 +299,7 @@ static bool rasterizeTri(const float* v0, const float* v1, const float* v2,
 		return true;
 	
 	// Calculate the footprint of the triangle on the grid's y-axis
-    // 先不考虑y轴，把三角形平铺在xz面上，y0，y1位二维平面上 以cs为单位的高度
+    // 在xz平面上，三角形在z轴上的最小值和最大值
 	int y0 = (int)((tmin[2] - bmin[2])*ics);
 	int y1 = (int)((tmax[2] - bmin[2])*ics);
 	y0 = rcClamp(y0, 0, h-1);

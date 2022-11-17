@@ -56,8 +56,10 @@ void rcFilterLowHangingWalkableObstacles(rcContext* ctx, const int walkableClimb
 				const bool walkable = s->area != RC_NULL_AREA;
 				// If current span is not walkable, but there is walkable
 				// span just below it, mark the span above it walkable too.
+                // 上面的span不可走，下面的span可走
 				if (!walkable && previousWalkable)
 				{
+                    // 上下span的上表面之差小于等于walkClimb
 					if (rcAbs((int)s->smax - (int)ps->smax) <= walkableClimb)
 						s->area = previousArea;
 				}

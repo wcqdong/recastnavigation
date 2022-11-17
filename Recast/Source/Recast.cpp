@@ -486,6 +486,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 			{
 				if (s->area != RC_NULL_AREA)
 				{
+                    // 构建空心体素
 					const int bot = (int)s->smax;
 					const int top = s->next ? (int)s->next->smin : MAX_HEIGHT;
 					chf.spans[idx].y = (unsigned short)rcClamp(bot, 0, 0xffff);
@@ -532,6 +533,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 
 						// Check that the gap between the spans is walkable,
 						// and that the climb height between the gaps is not too high.
+                        // 满足可通过条件
 						if ((top - bot) >= walkableHeight && rcAbs((int)ns.y - (int)s.y) <= walkableClimb)
 						{
 							// Mark direction as walkable.

@@ -62,6 +62,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 			const rcCompactCell& c = chf.cells[x+y*w];
 			for (int i = (int)c.index, ni = (int)(c.index+c.count); i < ni; ++i)
 			{
+                // 不可行走
 				if (chf.areas[i] == RC_NULL_AREA)
 				{
 					dist[i] = 0;
@@ -84,7 +85,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 						}
 					}
 					// At least one missing neighbour.
-					// 与四个方向都不连通
+					// 与一个邻居不连通
 					if (nc != 4)
 						dist[i] = 0;
 				}
@@ -217,7 +218,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 			}
 		}
 	}
-	
+
 	const unsigned char thr = (unsigned char)(radius*2);
 	for (int i = 0; i < chf.spanCount; ++i)
 		// radius范围内的设置为不可走
