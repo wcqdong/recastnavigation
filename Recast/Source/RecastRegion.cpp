@@ -305,7 +305,6 @@ static bool floodRegion(int x, int y, int i,
 				unsigned short nr = srcReg[ai];
 				if (nr & RC_BORDER_REG) // Do not take borders into account.
 					continue;
-                // nr != r说明本次floodRegion调用中已经被设置过r
                 // nr != 0 && nr != r说明与其他regionId接壤
 				if (nr != 0 && nr != r)
 				{
@@ -434,6 +433,7 @@ static void expandRegions(int maxIter, unsigned short level,
 			int x = stack[j].x;
 			int y = stack[j].y;
 			int i = stack[j].index;
+			// 已被标脏
 			if (i < 0)
 			{
 				failed++;
@@ -709,6 +709,7 @@ static bool mergeRegions(rcRegion& rega, rcRegion& regb)
 	return true;
 }
 
+/// 是否连接了边界
 static bool isRegionConnectedToBorder(const rcRegion& reg)
 {
 	// Region is connected to border if
@@ -919,7 +920,7 @@ static bool mergeAndFilterRegions(rcContext* ctx, int minRegionArea, int mergeRe
 	// Remove too small regions.
     // 进行深度遍历的临时栈
 	rcIntArray stack(32);
-    // 临时记录连通的所有region
+    // 临时记录连通的regions
 	rcIntArray trace(32);
 	for (int i = 0; i < nreg; ++i)
 	{
@@ -1734,7 +1735,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 	}
 		
 	// Write the result out.
-    // 赋值到紧缩高度场
+    // 赋值到紧缩高度场中的span
 	for (int i = 0; i < chf.spanCount; ++i)
 		chf.spans[i].reg = srcReg[i];
 	

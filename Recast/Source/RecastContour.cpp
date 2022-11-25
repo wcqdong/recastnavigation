@@ -949,7 +949,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 			{
 				unsigned char res = 0;
 				const rcCompactSpan& s = chf.spans[i];
-                // 没有reg或者是边界
+                // 没有regionId或者本身边界，这种span不在考虑范围
 				if (!chf.spans[i].reg || (chf.spans[i].reg & RC_BORDER_REG))
 				{
 					flags[i] = 0;
@@ -965,11 +965,11 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 						const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, dir);
 						r = chf.spans[ai].reg;
 					}
-                    // 相同region，则连通
+                    // 相同region，则连通，连通标记为1
 					if (r == chf.spans[i].reg)
 						res |= (1 << dir);
 				}
-                // 有边界标记为1
+                // 异或，不连通的方向标记为1
 				flags[i] = res ^ 0xf; // Inverse, mark non connected edges.
 			}
 		}
