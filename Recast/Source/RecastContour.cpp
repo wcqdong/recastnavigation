@@ -368,6 +368,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
             // 从ci到endi
 			while (ci != endi)
 			{
+				// 点到线段的距离
 				float d = distancePtSeg(points[ci*4+0], points[ci*4+2], ax, az, bx, bz);
 				if (d > maxd)
 				{
@@ -723,7 +724,7 @@ struct rcPotentialDiagonal
 };
 
 // Finds the lowest leftmost vertex of a contour.
-/// 找到最左下的的点和点的索引
+/// 找到最左边的的点和点的索引
 static void findLeftMostVertex(rcContour* contour, int* minx, int* minz, int* leftmost)
 {
 	*minx = contour->verts[0];
@@ -779,14 +780,14 @@ static int compareDiagDist(const void* va, const void* vb)
 static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 {
 	// Sort holes from left to right.
-    // 找到每个洞的最左下的点
+    // 找到每个洞的最左点
 	for (int i = 0; i < region.nholes; i++)
 		findLeftMostVertex(region.holes[i].contour, &region.holes[i].minx, &region.holes[i].minz, &region.holes[i].leftmost);
 
-    // 把洞按照最左下的点排序
+    // 把洞按照最左点排序
 	qsort(region.holes, region.nholes, sizeof(rcContourHole), compareHoles);
 
-    // 外轮廓和洞的定点数综合
+    // 外轮廓和洞的定点数总和
 	int maxVerts = region.outline->nverts;
 	for (int i = 0; i < region.nholes; i++)
 		maxVerts += region.holes[i].contour->nverts;
@@ -819,11 +820,11 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 			// j o-----o j+1
 			//         :
 			int ndiags = 0;
-            // 洞最左下的轮廓点
+            // 洞的最左点
 			const int* corner = &hole->verts[bestVertex*4];
 			for (int j = 0; j < outline->nverts; j++)
 			{
-                // 向内突出的点？
+                // j点满足与corner连线不与（j-1,j) (j,j+1)两个线段相交
 				if (inCone(j, outline->nverts, outline->verts, corner))
 				{
 					int dx = outline->verts[j*4+0] - corner[0];
@@ -1114,6 +1115,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 			// Collect outline contour and holes contours per region.
 			// We assume that there is one outline and multiple holes.
 			const int nregions = chf.maxRegions+1;
+			// 以region为单位，region内包括外轮廓和N个空洞
 			rcScopedDelete<rcContourRegion> regions((rcContourRegion*)rcAlloc(sizeof(rcContourRegion)*nregions, RC_ALLOC_TEMP));
 			if (!regions)
 			{
@@ -1121,7 +1123,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 				return false;
 			}
 			memset(regions, 0, sizeof(rcContourRegion)*nregions);
-			
+
 			rcScopedDelete<rcContourHole> holes((rcContourHole*)rcAlloc(sizeof(rcContourHole)*cset.nconts, RC_ALLOC_TEMP));
 			if (!holes)
 			{
@@ -1129,7 +1131,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 				return false;
 			}
 			memset(holes, 0, sizeof(rcContourHole)*cset.nconts);
-			
+
 			for (int i = 0; i < cset.nconts; ++i)
 			{
 				rcContour& cont = cset.conts[i];
@@ -1162,13 +1164,13 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 				if (winding[i] < 0)
 					reg.holes[reg.nholes++].contour = &cont;
 			}
-			
+
 			// Finally merge each regions holes into the outline.
 			for (int i = 0; i < nregions; i++)
 			{
 				rcContourRegion& reg = regions[i];
 				if (!reg.nholes) continue;
-				
+
 				if (reg.outline)
 				{
 					mergeRegionHoles(ctx, reg);
