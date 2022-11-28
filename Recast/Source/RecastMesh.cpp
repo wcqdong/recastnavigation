@@ -361,7 +361,7 @@ static bool diagonalLoose(int i, int j, int n, const int* verts, int* indices)
 	return inConeLoose(i, j, n, verts, indices) && diagonalieLoose(i, j, n, verts, indices);
 }
 
-/// 三角形话
+/// 三角形化
 /// 判断凸点，选择凸点形成的最小耳朵（耳朵根连线最短），把耳朵裁下来，继续找最小耳朵……
 static int triangulate(int n, const int* verts, int* indices, int* tris)
 {
@@ -373,7 +373,7 @@ static int triangulate(int n, const int* verts, int* indices, int* tris)
 	{
 		int i1 = next(i, n);
 		int i2 = next(i1, n);
-        // 是一个凸点，并且与所以的边都不相交
+        // 是一个凸点，并且与所有的边都不相交
 		if (diagonal(i, i2, n, verts, indices))
 			indices[i1] |= 0x80000000;
 	}

@@ -523,6 +523,7 @@ inline int prev(int i, int n) { return i-1 >= 0 ? i-1 : n-1; }
 inline int next(int i, int n) { return i+1 < n ? i+1 : 0; }
 
 /// ab向量与ac向量的叉乘
+/// 返回正值ac在ab左边，返回负值ac在ab右边
 inline int area2(const int* a, const int* b, const int* c)
 {
 	return (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
@@ -539,7 +540,7 @@ inline bool xorb(bool x, bool y)
 
 // Returns true iff c is strictly to the left of the directed
 // line through a to b.
-/// ac向量是否在ab向量的逆时针方向
+/// 返回true，ab在ac左边
 inline bool left(const int* a, const int* b, const int* c)
 {
 	return area2(a, b, c) < 0;
