@@ -27,8 +27,8 @@
 struct rcEdge
 {
 	unsigned short vert[2];     // 边的两个点
-	unsigned short polyEdge[2]; // 连接的两个多边形的边的索引
-	unsigned short poly[2];     // 连接的两个多边形的索引
+	unsigned short polyEdge[2]; // 邻接的两个多边形的边的索引
+	unsigned short poly[2];     // 邻接的两个多边形的索引
 };
 
 /// 构建边信息，每个边与哪个poly相邻
@@ -77,6 +77,7 @@ static bool buildMeshAdjacency(unsigned short* polys, const int npolys,
 				edge.poly[1] = (unsigned short)i;
 				edge.polyEdge[1] = 0;
 				// Insert edge
+                // 以v0位出发点的边可能有两条，所以先把之前的边的索引放入nextEdge，然后把新的放入firstEdge
 				nextEdge[edgeCount] = firstEdge[v0];
 				firstEdge[v0] = (unsigned short)edgeCount;
 				edgeCount++;
@@ -100,6 +101,8 @@ static bool buildMeshAdjacency(unsigned short* polys, const int npolys,
 				for (unsigned short e = firstEdge[v1]; e != RC_MESH_NULL_IDX; e = nextEdge[e])
 				{
 					rcEdge& edge = edges[e];
+                    // edge.poly[0] == edge.poly[1] 还没有邻接关系
+                    // edge.vert[1] == v0  邻接
 					if (edge.vert[1] == v0 && edge.poly[0] == edge.poly[1])
 					{
 						edge.poly[1] = (unsigned short)i;
@@ -363,6 +366,11 @@ static bool diagonalLoose(int i, int j, int n, const int* verts, int* indices)
 
 /// 三角形化
 /// 判断凸点，选择凸点形成的最小耳朵（耳朵根连线最短），把耳朵裁下来，继续找最小耳朵……
+/// #param n verts顶点个数
+/// #param verts 顶点
+/// #param indices 顶点索引
+/// #param tris 三角形的索引
+/// #return 三角形的个数
 static int triangulate(int n, const int* verts, int* indices, int* tris)
 {
 	int ntris = 0;
@@ -658,12 +666,14 @@ static bool canRemoveVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned sho
 		const int nv = countPolyVerts(p, nvp);
 
 		// Collect edges which touches the removed vertex.
+        // 遍历p的每一条边，如果边包含rem点，记录边的使用次数
 		for (int j = 0, k = nv-1; j < nv; k = j++)
 		{
 			if (p[j] == rem || p[k] == rem)
 			{
 				// Arrange edge so that a=rem.
 				int a = p[j], b = p[k];
+                // a点转成rem点
 				if (b == rem)
 					rcSwap(a,b);
 					
@@ -712,6 +722,7 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 	const int nvp = mesh.nvp;
 
 	// Count number of polygons to remove.
+    // 统计rem点被多少个多边形共用
 	int numRemovedVerts = 0;
 	for (int i = 0; i < mesh.npolys; ++i)
 	{
@@ -766,6 +777,7 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 		if (hasRem)
 		{
 			// Collect edges which does not touch the removed vertex.
+            // 保存不包含rem点的边
 			for (int j = 0, k = nv-1; j < nv; k = j++)
 			{
 				if (p[j] != rem && p[k] != rem)
@@ -778,7 +790,9 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 					nedges++;
 				}
 			}
+
 			// Remove the polygon.
+            // 把p多边形移除
 			unsigned short* p2 = &mesh.polys[(mesh.npolys-1)*nvp*2];
 			if (p != p2)
 				memcpy(p,p2,sizeof(unsigned short)*nvp);
@@ -791,6 +805,7 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 	}
 	
 	// Remove vertex.
+    // 把rem顶点移除
 	for (int i = (int)rem; i < mesh.nverts - 1; ++i)
 	{
 		mesh.verts[i*3+0] = mesh.verts[(i+1)*3+0];
@@ -800,6 +815,7 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 	mesh.nverts--;
 
 	// Adjust indices to match the removed vertex layout.
+    // rem点移除了，相应的p的顶点索引在rem之后的，也相应的索引-1
 	for (int i = 0; i < mesh.npolys; ++i)
 	{
 		unsigned short* p = &mesh.polys[i*nvp*2];
@@ -807,6 +823,7 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 		for (int j = 0; j < nv; ++j)
 			if (p[j] > rem) p[j]--;
 	}
+    // edge的顶点索引在rem之后的也相应-1
 	for (int i = 0; i < nedges; ++i)
 	{
 		if (edges[i*4+0] > rem) edges[i*4+0]--;
@@ -821,7 +838,8 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 	pushBack(edges[0], hole, nhole);
 	pushBack(edges[2], hreg, nhreg);
 	pushBack(edges[3], harea, nharea);
-	
+
+    // 把edges按顺序填充到hole
 	while (nedges)
 	{
 		bool match = false;
@@ -835,6 +853,7 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 			bool add = false;
 			if (hole[0] == eb)
 			{
+                // 插入到前面
 				// The segment matches the beginning of the hole boundary.
 				pushFront(ea, hole, nhole);
 				pushFront(r, hreg, nhreg);
@@ -843,6 +862,7 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 			}
 			else if (hole[nhole-1] == ea)
 			{
+                // 插入到后面
 				// The segment matches the end of the hole boundary.
 				pushBack(eb, hole, nhole);
 				pushBack(r, hreg, nhreg);
@@ -931,6 +951,7 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 	// Build initial polygons.
 	int npolys = 0;
 	memset(polys, 0xff, ntris*nvp*sizeof(unsigned short));
+    // 数据从hole保存到polys、pregs、pareas
 	for (int j = 0; j < ntris; ++j)
 	{
 		int* t = &tris[j*3];
@@ -1231,6 +1252,7 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 				
 				for (int j = 0; j < npolys-1; ++j)
 				{
+                    // 当前多边形
 					unsigned short* pj = &polys[j*nvp];
 					for (int k = j+1; k < npolys; ++k)
 					{

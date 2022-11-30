@@ -436,7 +436,7 @@ bool dtOverlapPolyPoly2D(const float* polya, const int npolya,
 /// @}
 /// @name Miscellanious functions.
 /// @{
-
+/// 返回接近v的值，这个值为2个N次幂，例如v=9，则返回16，如果v=100，则返回128
 inline unsigned int dtNextPow2(unsigned int v)
 {
 	v--;

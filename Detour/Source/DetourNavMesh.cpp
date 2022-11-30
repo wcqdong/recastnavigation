@@ -909,6 +909,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 							dtTileRef lastRef, dtTileRef* result)
 {
 	// Make sure the data is in right format.
+    //
 	dtMeshHeader* header = (dtMeshHeader*)data;
 	if (header->magic != DT_NAVMESH_MAGIC)
 		return DT_FAILURE | DT_WRONG_MAGIC;
@@ -932,6 +933,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	{
 		if (m_nextFree)
 		{
+            // 取出来一个free赋值给title
 			tile = m_nextFree;
 			m_nextFree = tile->next;
 			tile->next = 0;
@@ -1057,6 +1059,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 const dtMeshTile* dtNavMesh::getTileAt(const int x, const int y, const int layer) const
 {
 	// Find tile based on hash.
+    // h为hash值
 	int h = computeTileHash(x,y,m_tileLutMask);
 	dtMeshTile* tile = m_posLookup[h];
 	while (tile)

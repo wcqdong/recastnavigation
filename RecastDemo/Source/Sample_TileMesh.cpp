@@ -60,6 +60,7 @@ inline unsigned int nextPow2(unsigned int v)
 	return v;
 }
 
+/// 求v的对数
 inline unsigned int ilog2(unsigned int v)
 {
 	unsigned int r;
