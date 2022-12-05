@@ -44,7 +44,7 @@ struct dtNavMeshCreateParams
 	/// See #rcPolyMeshDetail for details related to these attributes.
 	/// @{
 
-	const unsigned int* detailMeshes;		///< The height detail sub-mesh data. [Size: 4 * #polyCount]
+	const unsigned int* detailMeshes;		///< The height detail sub-mesh data. [Size: 4 * #polyCount]    顶点的起始索引,顶点个数,三角形的起始索引,三角形的个数……
 	const float* detailVerts;				///< The detail mesh vertices. [Size: 3 * #detailVertsCount] [Unit: wu]
 	int detailVertsCount;					///< The number of vertices in the detail mesh.
 	const unsigned char* detailTris;		///< The detail mesh triangles. [Size: 4 * #detailTriCount]

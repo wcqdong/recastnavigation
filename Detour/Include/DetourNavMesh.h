@@ -216,7 +216,7 @@ struct dtBVNode
 {
 	unsigned short bmin[3];			///< Minimum bounds of the node's AABB. [(x, y, z)]
 	unsigned short bmax[3];			///< Maximum bounds of the node's AABB. [(x, y, z)]
-	int i;							///< The node's index. (Negative for escape sequence.)
+	int i;							///< The node's index. (Negative for escape sequence.)  >=0说明是叶子节点，多边形的索引
 };
 
 /// Defines an navigation mesh off-mesh connection within a dtMeshTile object.

@@ -127,14 +127,16 @@ static void subdivide(BVItem* items, int nitems, int imin, int imax, int& curNod
 		node.bmax[0] = items[imin].bmax[0];
 		node.bmax[1] = items[imin].bmax[1];
 		node.bmax[2] = items[imin].bmax[2];
-		
+
+        // 叶子节点的i大于等于0
 		node.i = items[imin].i;
 	}
 	else
 	{
 		// Split
 		calcExtends(items, nitems, imin, imax, node.bmin, node.bmax);
-		
+
+        // 找最长的轴，按最长轴二分
 		int	axis = longestAxis(node.bmax[0] - node.bmin[0],
 							   node.bmax[1] - node.bmin[1],
 							   node.bmax[2] - node.bmin[2]);
@@ -161,18 +163,23 @@ static void subdivide(BVItem* items, int nitems, int imin, int imax, int& curNod
 		subdivide(items, nitems, imin, isplit, curNode, nodes);
 		// Right
 		subdivide(items, nitems, isplit, imax, curNode, nodes);
-		
+
+        // 非叶子节点
 		int iescape = curNode - icur;
 		// Negative index means escape.
+        // 非叶子节点的i小于0
 		node.i = -iescape;
 	}
 }
 
+/// 构建bvtree
 static int createBVTree(dtNavMeshCreateParams* params, dtBVNode* nodes, int /*nnodes*/)
 {
 	// Build tree
 	float quantFactor = 1 / params->cs;
+    // 每个多边形的包围盒
 	BVItem* items = (BVItem*)dtAlloc(sizeof(BVItem)*params->polyCount, DT_ALLOC_TEMP);
+    // 求每个poly的包围盒
 	for (int i = 0; i < params->polyCount; i++)
 	{
 		BVItem& it = items[i];
@@ -188,7 +195,7 @@ static int createBVTree(dtNavMeshCreateParams* params, dtBVNode* nodes, int /*nn
 			const float* dv = &params->detailVerts[vb*3];
 			dtVcopy(bmin, dv);
 			dtVcopy(bmax, dv);
-
+            // 包围盒
 			for (int j = 1; j < ndv; j++)
 			{
 				dtVmin(bmin, &dv[j * 3]);
@@ -239,7 +246,7 @@ static int createBVTree(dtNavMeshCreateParams* params, dtBVNode* nodes, int /*nn
 	
 	return curNode;
 }
-
+/// 标记pt点是否在bmin bmax范围内
 static unsigned char classifyOffMeshPoint(const float* pt, const float* bmin, const float* bmax)
 {
 	static const unsigned char XP = 1<<0;
@@ -303,6 +310,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			return false;
 
 		// Find tight heigh bounds, used for culling out off-mesh start locations.
+        // 顶点的最高和最低
 		float hmin = FLT_MAX;
 		float hmax = -FLT_MAX;
 		
@@ -341,6 +349,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			offMeshConClass[i*2+1] = classifyOffMeshPoint(p1, bmin, bmax);
 
 			// Zero out off-mesh start positions which are not even potentially touching the mesh.
+            // 0xff 在mesh范围内
 			if (offMeshConClass[i*2+0] == 0xff)
 			{
 				if (p0[1] < bmin[1] || p0[1] > bmax[1])
@@ -493,6 +502,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	
 	// Store vertices
 	// Mesh vertices
+    // 把顶点存到navVerts
 	for (int i = 0; i < params->vertCount; ++i)
 	{
 		const unsigned short* iv = &params->verts[i*3];
@@ -502,6 +512,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		v[2] = params->bmin[2] + iv[2] * params->cs;
 	}
 	// Off-mesh link vertices.
+    // 把offMeshLink顶点存入navVerts
 	int n = 0;
 	for (int i = 0; i < params->offMeshConCount; ++i)
 	{
@@ -518,6 +529,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	
 	// Store polygons
 	// Mesh polys
+    // 多边形和多边形连接信息保存到navPolys
 	const unsigned short* src = params->polys;
 	for (int i = 0; i < params->polyCount; ++i)
 	{
@@ -530,6 +542,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		{
 			if (src[j] == MESH_NULL_IDX) break;
 			p->verts[j] = src[j];
+            // 挨着border
 			if (src[nvp+j] & 0x8000)
 			{
 				// Border or portal edge.
@@ -556,6 +569,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		src += nvp*2;
 	}
 	// Off-mesh connection vertices.
+    // offMeshLink看做多边形保存在navPolys中
 	n = 0;
 	for (int i = 0; i < params->offMeshConCount; ++i)
 	{

@@ -699,6 +699,7 @@ bool dtNavMesh::getPolyHeight(const dtMeshTile* tile, const dtPoly* poly, const 
 	for (int j = 0; j < pd->triCount; ++j)
 	{
 		const unsigned char* t = &tile->detailTris[(pd->triBase+j)*4];
+        // v为三角形的三个顶点，每个元素代表一个顶点的头指针(即每个元素是x y z中x索引)
 		const float* v[3];
 		for (int k = 0; k < 3; ++k)
 		{
@@ -708,6 +709,7 @@ bool dtNavMesh::getPolyHeight(const dtMeshTile* tile, const dtPoly* poly, const 
 				v[k] = &tile->detailVerts[(pd->vertBase+(t[k]-poly->vertCount))*3];
 		}
 		float h;
+        // 获得三角形上的高度
 		if (dtClosestHeightPointTriangle(pos, v[0], v[1], v[2], h))
 		{
 			*height = h;
@@ -729,6 +731,7 @@ void dtNavMesh::closestPointOnPoly(dtPolyRef ref, const float* pos, float* close
 {
 	const dtMeshTile* tile = 0;
 	const dtPoly* poly = 0;
+    // 获得tile和poly
 	getTileAndPolyByRefUnsafe(ref, &tile, &poly);
 
 	dtVcopy(closest, pos);

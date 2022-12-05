@@ -88,6 +88,7 @@ inline bool dtQueryFilter::passFilter(const dtPolyRef /*ref*/,
 									  const dtMeshTile* /*tile*/,
 									  const dtPoly* poly) const
 {
+    // 包含任意m_includeFlags中任意一个，不包含所有m_excludeFlags
 	return (poly->flags & m_includeFlags) != 0 && (poly->flags & m_excludeFlags) == 0;
 }
 
@@ -755,7 +756,9 @@ void dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const float* qm
 		const dtPolyRef base = m_nav->getPolyRefBase(tile);
 		while (node < end)
 		{
+            // 是否包围盒重叠
 			const bool overlap = dtOverlapQuantBounds(bmin, bmax, node->bmin, node->bmax);
+            // 是否为叶子节点
 			const bool isLeafNode = node->i >= 0;
 
 			if (isLeafNode && overlap)
@@ -778,8 +781,12 @@ void dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const float* qm
 				}
 			}
 
+            // 如果overLap，node++后为原来node的左孩子节点
+            // 如果为子节点，node++后为原来node的右兄弟节点或者已经是右兄弟节点 跳转到祖先的右孩子节点
 			if (overlap || isLeafNode)
 				node++;
+
+            // 如果不overlap或者不是叶子节点，那么说明判断的方向错了，换父节点的另一个孩子节点判断
 			else
 			{
 				const int escapeIndex = -node->i;
@@ -913,11 +920,13 @@ dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* halfExt
 		return DT_FAILURE | DT_INVALID_PARAM;
 	}
 
+    // center点的halfExtents范围
 	float bmin[3], bmax[3];
 	dtVsub(bmin, center, halfExtents);
 	dtVadd(bmax, center, halfExtents);
-	
+
 	// Find tiles the query touches.
+    // 计算所在tile的索引范围
 	int minx, miny, maxx, maxy;
 	m_nav->calcTileLoc(bmin, &minx, &miny);
 	m_nav->calcTileLoc(bmax, &maxx, &maxy);
@@ -929,9 +938,11 @@ dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* halfExt
 	{
 		for (int x = minx; x <= maxx; ++x)
 		{
+            // x y所在tile
 			const int nneis = m_nav->getTilesAt(x,y,neis,MAX_NEIS);
 			for (int j = 0; j < nneis; ++j)
 			{
+                // 查询在tile中的哪个poly
 				queryPolygonsInTile(neis[j], bmin, bmax, filter, query);
 			}
 		}

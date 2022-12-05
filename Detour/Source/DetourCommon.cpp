@@ -212,10 +212,13 @@ bool dtClosestHeightPointTriangle(const float* p, const float* a, const float* b
 
 	// Compute scaled barycentric coordinates
 	float denom = v0[0] * v1[2] - v0[2] * v1[0];
+	// 不共线，共线的面积太小，所以点不在面上
 	if (fabsf(denom) < EPS)
 		return false;
 
+	// v1叉乘v2取反
 	float u = v1[2] * v2[0] - v1[0] * v2[2];
+	// v0叉乘v2
 	float v = v0[0] * v2[2] - v0[2] * v2[0];
 
 	if (denom < 0) {
@@ -225,6 +228,8 @@ bool dtClosestHeightPointTriangle(const float* p, const float* a, const float* b
 	}
 
 	// If point lies inside the triangle, return interpolated ycoord.
+	// u >= 0.0f && v >= 0.0f 说明v2 在v0和v1之间
+	// u + v <= denom 说明abp和apc的面积之和小于abc的面积，此时p在三角形内
 	if (u >= 0.0f && v >= 0.0f && (u + v) <= denom) {
 		h = a[1] + (v0[1] * u + v1[1] * v) / denom;
 		return true;

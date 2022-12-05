@@ -81,11 +81,11 @@ class InputGeom
 	///@{
 	static const int MAX_OFFMESH_CONNECTIONS = 256;
 	float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
-	float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
-	unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
-	unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
-	unsigned short m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];
-	unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
+	float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];    // 角色半径
+	unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];    // 是否双向
+	unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];   // link的area类型，默认为SAMPLE_POLYAREA_JUMP
+	unsigned short m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];  // link的flag类型，默认为SAMPLE_POLYAREA_JUMP
+	unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];       // 连接Id，1000+m_offMeshConCount
 	int m_offMeshConCount;
 	///@}
 
