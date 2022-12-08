@@ -105,6 +105,8 @@ static bool circumCircle(const float* p1, const float* p2, const float* p3,
 	return false;
 }
 
+/// 点到poly的距离
+/// 如果点在poly内，则返回点到poly在y轴上的距离
 static float distPtTri(const float* p, const float* a, const float* b, const float* c)
 {
 	float v0[3], v1[3], v2[3];
@@ -194,7 +196,8 @@ static float distToTriMesh(const float* p, const float* verts, const int /*nvert
 	return dmin;
 }
 
-/// 到每个边最短的的距离
+/// 到多边形边最短的的距离
+/// 返回正数则在多边形内
 static float distToPoly(int nvert, const float* verts, const float* p)
 {
 	
@@ -563,9 +566,9 @@ static void delaunayHull(rcContext* ctx, const int npts, const float* pts,
 	}
 }
 
-// Calculate minimum extend of the polygon.
-// verts中两个点组成边，其他vert到这个边的最远距离maxEdgeDist
-// maxEdgeDist中的最小距离为poly的最小延展
+/// Calculate minimum extend of the polygon.
+/// verts中每两个点组成边，其他vert到这个边的最远距离maxEdgeDist
+/// maxEdgeDist中的最小距离为poly的最小延展
 static float polyMinExtent(const float* verts, const int nverts)
 {
 	float minDist = FLT_MAX;
@@ -598,7 +601,7 @@ static void triangulateHull(const int /*nverts*/, const float* verts, const int 
 	
 	// Start from an ear with shortest perimeter.
 	// This tends to favor well formed triangles as starting point.
-    // 先找一个面积最小的
+    // 先找一个周长最小的
 	float dmin = FLT_MAX;
 	for (int i = 0; i < nhull; i++)
 	{
@@ -797,7 +800,8 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 					++k;
 				}
 			}
-			
+
+			// j为这条边的起点索引,先放入到hull，下面的遍历中把剩下的点放入到hull
 			hull[nhull++] = j;
 			// Add new vertices.
 			if (swapped)
@@ -869,7 +873,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 				pt[1] = (bmax[1]+bmin[1])*0.5f;
 				pt[2] = z*sampleDist;
 				// Make sure the samples are not too close to the edges.
-                // 与poly的距离
+                // distToPoly返回正数，则在poly内，与边的最近距离在
 				if (distToPoly(nin,in,pt) > -sampleDist/2) continue;
 				samples.push(x);
 				samples.push(getHeight(pt[0], pt[1], pt[2], cs, ics, chf.ch, heightSearchRadius, hp));
@@ -1104,7 +1108,7 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 	{
 		// Copy the height from the same region, and mark region borders
 		// as seed points to fill the rest.
-        // 遍历poly包围盒内所有的点，把region边界保存到queue
+        // 遍历poly包围盒内所有的点，如果同region则设置高度，并把region边界保存到queue
 		for (int hy = 0; hy < hp.height; hy++)
 		{
 			int y = hp.ymin + hy + bs;
@@ -1115,6 +1119,7 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 				for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
 				{
 					const rcCompactSpan& s = chf.spans[i];
+					// 一个cell上有多层，确实是和region相同的一层
 					if (s.reg == region)
 					{
 						// Store height
@@ -1162,7 +1167,9 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 	// We assume the seed is centered in the polygon, so a BFS to collect
 	// height data will ensure we do not move onto overlapping polygons and
 	// sample wrong heights.
-    // 遍历边界
+    // 广度优先遍历边界，所有与region连通的设置高度
+	// 为什么要用region border上的span进行广度遍历，而不是直接找到所有包围盒内的高度场对应的高度呢
+	// 因为有多层，region border上的span是为了确定在哪一层，以这一层的span再进行泛洪
 	while (head*3 < queue.size())
 	{
 		int cx = queue[head*3+0];
@@ -1305,6 +1312,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		ymin = rcMax(0,ymin-1);
 		ymax = rcMin(chf.height,ymax+1);
 		if (xmin >= xmax || ymin >= ymax) continue;
+		// 包围盒中最最宽和最长
 		maxhw = rcMax(maxhw, xmax-xmin);
 		maxhh = rcMax(maxhh, ymax-ymin);
 	}
@@ -1366,6 +1374,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		hp.ymin = bounds[i*4+2];
 		hp.width = bounds[i*4+1]-bounds[i*4+0];
 		hp.height = bounds[i*4+3]-bounds[i*4+2];
+		// 设置包围盒内与region相同和与region连通的格子的高度
 		getHeightData(ctx, chf, p, npoly, mesh.verts, borderSize, hp, arr, mesh.regs[i]);
 		
 		// Build detail mesh.
