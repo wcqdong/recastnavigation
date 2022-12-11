@@ -50,6 +50,7 @@ static int compareItemY(const void* va, const void* vb)
 	return 0;
 }
 
+/// 从imin到imax获得最大包围盒
 static void calcExtends(const BoundsItem* items, const int /*nitems*/,
 						const int imin, const int imax,
 						float* bmin, float* bmax)
@@ -155,10 +156,11 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 	cm->ntris = ntris;
 
 	// Build tree
+    // 三角形的包围盒
 	BoundsItem* items = new BoundsItem[ntris];
 	if (!items)
 		return false;
-
+    // 构建三角形的包围盒
 	for (int i = 0; i < ntris; i++)
 	{
 		const int* t = &tris[i*3];
@@ -180,6 +182,7 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 
 	int curTri = 0;
 	int curNode = 0;
+    // 构建bvtree
 	subdivide(items, ntris, 0, ntris, trisPerChunk, curNode, cm->nodes, nchunks*4, curTri, cm->tris, tris);
 	
 	delete [] items;
@@ -220,6 +223,7 @@ int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm,
 	while (i < cm->nnodes)
 	{
 		const rcChunkyTriMeshNode* node = &cm->nodes[i];
+        // 两个包围盒是否重叠
 		const bool overlap = checkOverlapRect(bmin, bmax, node->bmin, node->bmax);
 		const bool isLeafNode = node->i >= 0;
 		
@@ -236,6 +240,7 @@ int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm,
 			i++;
 		else
 		{
+            // i变到树的另一边
 			const int escapeIndex = -node->i;
 			i += escapeIndex;
 		}

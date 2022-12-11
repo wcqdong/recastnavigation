@@ -249,29 +249,29 @@ static int createBVTree(dtNavMeshCreateParams* params, dtBVNode* nodes, int /*nn
 /// 标记pt点是否在bmin bmax范围内
 static unsigned char classifyOffMeshPoint(const float* pt, const float* bmin, const float* bmax)
 {
-	static const unsigned char XP = 1<<0;
-	static const unsigned char ZP = 1<<1;
-	static const unsigned char XM = 1<<2;
-	static const unsigned char ZM = 1<<3;	
+	static const unsigned char XP = 1<<0;   // 1
+	static const unsigned char ZP = 1<<1;   // 10
+	static const unsigned char XM = 1<<2;   // 100
+	static const unsigned char ZM = 1<<3;	// 1000
 
 	unsigned char outcode = 0; 
-	outcode |= (pt[0] >= bmax[0]) ? XP : 0;
-	outcode |= (pt[2] >= bmax[2]) ? ZP : 0;
-	outcode |= (pt[0] < bmin[0])  ? XM : 0;
-	outcode |= (pt[2] < bmin[2])  ? ZM : 0;
+	outcode |= (pt[0] >= bmax[0]) ? XP : 0; // 在包围盒右边
+	outcode |= (pt[2] >= bmax[2]) ? ZP : 0; // 在包围盒上边
+	outcode |= (pt[0] < bmin[0])  ? XM : 0; // 在包围盒左边
+	outcode |= (pt[2] < bmin[2])  ? ZM : 0; // 在包围盒下边
 
 	switch (outcode)
 	{
-	case XP: return 0;
-	case XP|ZP: return 1;
-	case ZP: return 2;
-	case XM|ZP: return 3;
-	case XM: return 4;
-	case XM|ZM: return 5;
-	case ZM: return 6;
-	case XP|ZM: return 7;
+	case XP: return 0;      // 右
+	case XP|ZP: return 1;   // 右上
+	case ZP: return 2;      // 上
+	case XM|ZP: return 3;   // 左上
+	case XM: return 4;      // 左
+	case XM|ZM: return 5;   // 左下
+	case ZM: return 6;      // 下
+	case XP|ZM: return 7;   // 右下
 	};
-
+    // 在包围盒内
 	return 0xff;	
 }
 
@@ -313,7 +313,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
         // 顶点的最高和最低
 		float hmin = FLT_MAX;
 		float hmax = -FLT_MAX;
-		
+
 		if (params->detailVerts && params->detailVertsCount)
 		{
 			for (int i = 0; i < params->detailVertsCount; ++i)
@@ -335,6 +335,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		}
 		hmin -= params->walkableClimb;
 		hmax += params->walkableClimb;
+        // tile的3d包围盒
 		float bmin[3], bmax[3];
 		dtVcopy(bmin, params->bmin);
 		dtVcopy(bmax, params->bmax);
@@ -345,13 +346,16 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		{
 			const float* p0 = &params->offMeshConVerts[(i*2+0)*3];
 			const float* p1 = &params->offMeshConVerts[(i*2+1)*3];
+            // p0与tile包围盒的位置关系
 			offMeshConClass[i*2+0] = classifyOffMeshPoint(p0, bmin, bmax);
+            // p1与tile包围盒的位置关系
 			offMeshConClass[i*2+1] = classifyOffMeshPoint(p1, bmin, bmax);
 
 			// Zero out off-mesh start positions which are not even potentially touching the mesh.
-            // 0xff 在mesh范围内
+            // 0xff表示在tile包围盒内
 			if (offMeshConClass[i*2+0] == 0xff)
 			{
+                // 不在高度范围内
 				if (p0[1] < bmin[1] || p0[1] > bmax[1])
 					offMeshConClass[i*2+0] = 0;
 			}
@@ -362,6 +366,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			if (offMeshConClass[i*2+1] == 0xff)
 				offMeshConLinkCount++;
 
+            // 起点在tile包围盒内
 			if (offMeshConClass[i*2+0] == 0xff)
 				storedOffMeshConCount++;
 		}
@@ -369,12 +374,13 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	
 	// Off-mesh connectionss are stored as polygons, adjust values.
 	const int totPolyCount = params->polyCount + storedOffMeshConCount;
+    // offmesh的poly顶点数是两个，所以storedOffMeshConCount*2
 	const int totVertCount = params->vertCount + storedOffMeshConCount*2;
 	
 	// Find portal edges which are at tile borders.
 	// 边的个数
 	int edgeCount = 0;
-	// 邻接边的个数
+	// tile门的个数
 	int portalCount = 0;
 	for (int i = 0; i < params->polyCount; ++i)
 	{
@@ -652,6 +658,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	for (int i = 0; i < params->offMeshConCount; ++i)
 	{
 		// Only store connections which start from this tile.
+        // 起点在该tile的包围盒内
 		if (offMeshConClass[i*2+0] == 0xff)
 		{
 			dtOffMeshConnection* con = &offMeshCons[n];

@@ -32,6 +32,7 @@ struct rcChunkyTriMesh
 	inline rcChunkyTriMesh() : nodes(0), nnodes(0), tris(0), ntris(0), maxTrisPerChunk(0) {};
 	inline ~rcChunkyTriMesh() { delete [] nodes; delete [] tris; }
 
+    // bvtree
 	rcChunkyTriMeshNode* nodes;
 	int nnodes;
 	int* tris;

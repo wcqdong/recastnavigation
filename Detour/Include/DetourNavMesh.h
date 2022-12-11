@@ -155,6 +155,7 @@ enum dtPolyTypes
 struct dtPoly
 {
 	/// Index to first link in linked list. (Or #DT_NULL_LINK if there is no link.)
+	/// linke
 	unsigned int firstLink;
 
 	/// The indices of the polygon's vertices.
@@ -201,9 +202,9 @@ struct dtPolyDetail
 /// @see dtMeshTile
 struct dtLink
 {
-	dtPolyRef ref;					///< Neighbour reference. (The neighbor that is linked to.)
+	dtPolyRef ref;					///< Neighbour reference. (The neighbor that is linked to.) 邻居poly的ref
 	unsigned int next;				///< Index of the next link.
-	unsigned char edge;				///< Index of the polygon edge that owns this link.
+	unsigned char edge;				///< Index of the polygon edge that owns this link.  当前poly的边
 	unsigned char side;				///< If a boundary link, defines on which side the link is.
 	unsigned char bmin;				///< If a boundary link, defines the minimum sub-edge area.
 	unsigned char bmax;				///< If a boundary link, defines the maximum sub-edge area.
@@ -224,23 +225,29 @@ struct dtBVNode
 struct dtOffMeshConnection
 {
 	/// The endpoints of the connection. [(ax, ay, az, bx, by, bz)]
+	/// 起点和终点
 	float pos[6];
 
 	/// The radius of the endpoints. [Limit: >= 0]
+	/// 大小等于agentRadius
 	float rad;		
 
 	/// The polygon reference of the connection within the tile.
+	/// offmeshlink是一个多边形，poly表示tile中polys的索引
 	unsigned short poly;
 
 	/// Link flags. 
 	/// @note These are not the connection's user defined flags. Those are assigned via the 
 	/// connection's dtPoly definition. These are link flags used for internal purposes.
+	/// 是否为双向 1=双向  0=单向
 	unsigned char flags;
 
 	/// End point side.
+	/// 连接的终点在当前tile的哪个方向，规则在classifyOffMeshPoint函数中
 	unsigned char side;
 
 	/// The id of the offmesh connection. (User assigned when the navigation mesh is built.)
+	/// 编号，1000+m_offMeshConCount
 	unsigned int userId;
 };
 
@@ -282,7 +289,7 @@ struct dtMeshTile
 {
 	unsigned int salt;					///< Counter describing modifications to the tile.
 
-	unsigned int linksFreeList;			///< Index to the next free link.
+	unsigned int linksFreeList;			///< Index to the next free link.   和links组成link池，由poly申请dtLink对象
 	dtMeshHeader* header;				///< The tile header.
 	dtPoly* polys;						///< The tile polygons. [Size: dtMeshHeader::polyCount]
 	float* verts;						///< The tile vertices. [(x, y, z) * dtMeshHeader::vertCount]

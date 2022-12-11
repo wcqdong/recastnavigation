@@ -451,17 +451,20 @@ void dtNavMesh::connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side)
 	}
 }
 
+/// 连接从tile到target
 void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int side)
 {
 	if (!tile) return;
 	
 	// Connect off-mesh links.
 	// We are interested on links which land from target tile to this tile.
+    // 反方向
 	const unsigned char oppositeSide = (side == -1) ? 0xff : (unsigned char)dtOppositeTile(side);
 	
 	for (int i = 0; i < target->header->offMeshConCount; ++i)
 	{
 		dtOffMeshConnection* targetCon = &target->offMeshCons[i];
+        // tile的反方向就是target的正向，先过滤掉不同向的
 		if (targetCon->side != oppositeSide)
 			continue;
 
@@ -475,6 +478,7 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 		// Find polygon to connect to.
 		const float* p = &targetCon->pos[3];
 		float nearestPt[3];
+        // 找到tile中最近的poly级poly上最近的点
 		dtPolyRef ref = findNearestPolyInTile(tile, p, halfExtents, nearestPt);
 		if (!ref)
 			continue;
@@ -521,6 +525,7 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 
 }
 
+/// 为每一个poly的每一条连通的边创建dtLink
 void dtNavMesh::connectIntLinks(dtMeshTile* tile)
 {
 	if (!tile) return;
@@ -542,6 +547,7 @@ void dtNavMesh::connectIntLinks(dtMeshTile* tile)
 			// Skip hard and non-internal edges.
 			if (poly->neis[j] == 0 || (poly->neis[j] & DT_EXT_LINK)) continue;
 
+            // 分配一个link的index
 			unsigned int idx = allocLink(tile);
 			if (idx != DT_NULL_LINK)
 			{
@@ -568,13 +574,16 @@ void dtNavMesh::baseOffMeshLinks(dtMeshTile* tile)
 	for (int i = 0; i < tile->header->offMeshConCount; ++i)
 	{
 		dtOffMeshConnection* con = &tile->offMeshCons[i];
+        // off-mesh link的poly
 		dtPoly* poly = &tile->polys[con->poly];
 	
 		const float halfExtents[3] = { con->rad, tile->header->walkableClimb, con->rad };
 		
 		// Find polygon to connect to.
+        // con的起点
 		const float* p = &con->pos[0]; // First vertex
 		float nearestPt[3];
+        // 找到最近的多边形
 		dtPolyRef ref = findNearestPolyInTile(tile, p, halfExtents, nearestPt);
 		if (!ref) continue;
 		// findNearestPoly may return too optimistic results, further check to make sure. 
@@ -585,6 +594,7 @@ void dtNavMesh::baseOffMeshLinks(dtMeshTile* tile)
 		dtVcopy(v, nearestPt);
 
 		// Link off-mesh connection to target poly.
+        // off-mesh-link的poly连接起点所在poly
 		unsigned int idx = allocLink(tile);
 		if (idx != DT_NULL_LINK)
 		{
@@ -595,22 +605,26 @@ void dtNavMesh::baseOffMeshLinks(dtMeshTile* tile)
 			link->bmin = link->bmax = 0;
 			// Add to linked list.
 			link->next = poly->firstLink;
+            // off-mesh-link的poly连接ref(ref为con起点所在poly)
 			poly->firstLink = idx;
 		}
 
-		// Start end-point is always connect back to off-mesh connection. 
+		// Start end-point is always connect back to off-mesh connection.
+        // 起点所在poly连接off-mesh-link的poly
 		unsigned int tidx = allocLink(tile);
 		if (tidx != DT_NULL_LINK)
 		{
 			const unsigned short landPolyIdx = (unsigned short)decodePolyIdPoly(ref);
 			dtPoly* landPoly = &tile->polys[landPolyIdx];
 			dtLink* link = &tile->links[tidx];
+            // 连接off-mesh-link的poly
 			link->ref = base | (dtPolyRef)(con->poly);
 			link->edge = 0xff;
 			link->side = 0xff;
 			link->bmin = link->bmax = 0;
 			// Add to linked list.
 			link->next = landPoly->firstLink;
+            // ref的poly连接off-mesh-link
 			landPoly->firstLink = tidx;
 		}
 	}
@@ -727,6 +741,7 @@ bool dtNavMesh::getPolyHeight(const dtMeshTile* tile, const dtPoly* poly, const 
 	return true;
 }
 
+/// 获得pos点与poly最近的点
 void dtNavMesh::closestPointOnPoly(dtPolyRef ref, const float* pos, float* closest, bool* posOverPoly) const
 {
 	const dtMeshTile* tile = 0;
@@ -773,6 +788,7 @@ dtPolyRef dtNavMesh::findNearestPolyInTile(const dtMeshTile* tile,
 	
 	// Get nearby polygons from proximity grid.
 	dtPolyRef polys[128];
+    // 查询与bmin bmax包围盒重叠的多边形
 	int polyCount = queryPolygonsInTile(tile, bmin, bmax, polys, 128);
 	
 	// Find nearest polygon amongst the nearby polygons.
@@ -915,7 +931,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 							dtTileRef lastRef, dtTileRef* result)
 {
 	// Make sure the data is in right format.
-    //
+    // 检查魔码和版本
 	dtMeshHeader* header = (dtMeshHeader*)data;
 	if (header->magic != DT_NAVMESH_MAGIC)
 		return DT_FAILURE | DT_WRONG_MAGIC;
@@ -978,6 +994,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
 	
 	// Insert tile into the position lut.
+    // 求x y的hash值
 	int h = computeTileHash(header->x, header->y, m_tileLutMask);
 	tile->next = m_posLookup[h];
 	m_posLookup[h] = tile;
@@ -1019,10 +1036,13 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	tile->dataSize = dataSize;
 	tile->flags = flags;
 
+    // 构建tile里的每个poly的link信息
 	connectIntLinks(tile);
 
 	// Base off-mesh connections to their starting polygons and connect connections inside the tile.
+    // 构建offmeshlink的link信息
 	baseOffMeshLinks(tile);
+    // 构建tile内部相连的信息
 	connectExtOffMeshLinks(tile, tile, -1);
 
 	// Create connections with neighbour tiles.
@@ -1044,6 +1064,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	}
 	
 	// Connect with neighbour tiles.
+    // 周围8个邻居
 	for (int i = 0; i < 8; ++i)
 	{
 		nneis = getNeighbourTilesAt(header->x, header->y, i, neis, MAX_NEIS);
@@ -1362,6 +1383,7 @@ dtTileRef dtNavMesh::getTileRef(const dtMeshTile* tile) const
 ///     // Use the reference to access the polygon data.
 /// }
 /// @endcode
+/// 或的第一个poly的encodeId，常用来遍历tile中所有poly
 dtPolyRef dtNavMesh::getPolyRefBase(const dtMeshTile* tile) const
 {
 	if (!tile) return 0;
