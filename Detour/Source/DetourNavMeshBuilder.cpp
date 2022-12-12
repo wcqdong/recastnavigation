@@ -548,7 +548,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		{
 			if (src[j] == MESH_NULL_IDX) break;
 			p->verts[j] = src[j];
-            // 挨着border
+            // portal edge
 			if (src[nvp+j] & 0x8000)
 			{
 				// Border or portal edge.

@@ -66,8 +66,10 @@ inline bool overlapSlabs(const float* amin, const float* amax,
 
 static float getSlabCoord(const float* va, const int side)
 {
+    // 左右
 	if (side == 0 || side == 4)
 		return va[0];
+    // 上下
 	else if (side == 2 || side == 6)
 		return va[2];
 	return 0;
@@ -75,6 +77,7 @@ static float getSlabCoord(const float* va, const int side)
 
 static void calcSlabEndPoints(const float* va, const float* vb, float* bmin, float* bmax, const int side)
 {
+    // 左或右，保存z、y
 	if (side == 0 || side == 4)
 	{
 		if (va[2] < vb[2])
@@ -92,6 +95,7 @@ static void calcSlabEndPoints(const float* va, const float* vb, float* bmin, flo
 			bmax[1] = va[1];
 		}
 	}
+    // 上或下，保存x、y
 	else if (side == 2 || side == 6)
 	{
 		if (va[0] < vb[0])
@@ -297,6 +301,7 @@ const dtNavMeshParams* dtNavMesh::getParams() const
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
+/// 查找在tile中与va、vb边重叠的边，返回边重叠的部分
 int dtNavMesh::findConnectingPolys(const float* va, const float* vb,
 								   const dtMeshTile* tile, int side,
 								   dtPolyRef* con, float* conarea, int maxcon) const
@@ -304,7 +309,9 @@ int dtNavMesh::findConnectingPolys(const float* va, const float* vb,
 	if (!tile) return 0;
 	
 	float amin[2], amax[2];
+    // va/vb组成的portal片
 	calcSlabEndPoints(va, vb, amin, amax, side);
+    // 获得海岸，例如朝向左或右的portal，apos=va[0]，例如朝向上或下的portal，apos=va[2]
 	const float apos = getSlabCoord(va, side);
 
 	// Remove links pointing to 'side' and compact the links array. 
@@ -321,10 +328,12 @@ int dtNavMesh::findConnectingPolys(const float* va, const float* vb,
 		for (int j = 0; j < nv; ++j)
 		{
 			// Skip edges which do not point to the right side.
+            // 跳过不是portal的边
 			if (poly->neis[j] != m) continue;
 			
 			const float* vc = &tile->verts[poly->verts[j]*3];
 			const float* vd = &tile->verts[poly->verts[(j+1) % nv]*3];
+            // 海岸
 			const float bpos = getSlabCoord(vc, side);
 			
 			// Segments are not close enough.
@@ -332,6 +341,7 @@ int dtNavMesh::findConnectingPolys(const float* va, const float* vb,
 				continue;
 			
 			// Check if the segments touch.
+            // vc/vd组成的portal片
 			calcSlabEndPoints(vc,vd, bmin,bmax, side);
 			
 			if (!overlapSlabs(amin,amax, bmin,bmax, 0.01f, tile->header->walkableClimb)) continue;
@@ -384,6 +394,7 @@ void dtNavMesh::unconnectLinks(dtMeshTile* tile, dtMeshTile* target)
 	}
 }
 
+/// 构建portal edge形成的rcLink
 void dtNavMesh::connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side)
 {
 	if (!tile) return;
@@ -418,6 +429,7 @@ void dtNavMesh::connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side)
 				unsigned int idx = allocLink(tile);
 				if (idx != DT_NULL_LINK)
 				{
+                    // poly中加入link，link指向nei[k]
 					dtLink* link = &tile->links[idx];
 					link->ref = nei[k];
 					link->edge = (unsigned char)j;

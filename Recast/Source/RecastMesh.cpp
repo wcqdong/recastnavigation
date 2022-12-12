@@ -1358,6 +1358,7 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 			{
 				if (p[j] == RC_MESH_NULL_IDX) break;
 				// Skip connected edges.
+                // 跳过已经有邻接多边形的，剩下的就是可能邻接border的
 				if (p[nvp+j] != RC_MESH_NULL_IDX)
 					continue;
 				int nj = j+1;
@@ -1365,12 +1366,16 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 				const unsigned short* va = &mesh.verts[p[j]*3];
 				const unsigned short* vb = &mesh.verts[p[nj]*3];
 
+                // 左侧的门
 				if ((int)va[0] == 0 && (int)vb[0] == 0)
 					p[nvp+j] = 0x8000 | 0;
+                // 上侧的门
 				else if ((int)va[2] == h && (int)vb[2] == h)
 					p[nvp+j] = 0x8000 | 1;
+                // 右侧的门
 				else if ((int)va[0] == w && (int)vb[0] == w)
 					p[nvp+j] = 0x8000 | 2;
+                // 下侧的门
 				else if ((int)va[2] == 0 && (int)vb[2] == 0)
 					p[nvp+j] = 0x8000 | 3;
 			}

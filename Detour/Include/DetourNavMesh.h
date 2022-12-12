@@ -163,6 +163,7 @@ struct dtPoly
 	unsigned short verts[DT_VERTS_PER_POLYGON];
 
 	/// Packed data representing neighbor polygons references and flags for each edge.
+	/// 邻接poly索引或portal朝向
 	unsigned short neis[DT_VERTS_PER_POLYGON];
 
 	/// The user defined polygon flags.
