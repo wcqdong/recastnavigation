@@ -180,9 +180,11 @@ static bool getSteerTarget(dtNavMeshQuery* navQuery, const float* startPos, cons
 	int nsteerPath = 0;
 	navQuery->findStraightPath(startPos, endPos, path, pathSize,
 							   steerPath, steerPathFlags, steerPathPolys, &nsteerPath, MAX_STEER_POINTS);
+        // 没有平滑路径
 	if (!nsteerPath)
 		return false;
-		
+
+        // 平滑后的路径拷贝到outPoints
 	if (outPoints && outPointCount)
 	{
 		*outPointCount = nsteerPath;
@@ -724,7 +726,7 @@ void NavMeshTesterTool::recalc()
 				static const float SLOP = 0.01f;
 				
 				m_nsmoothPath = 0;
-				
+
 				dtVcopy(&m_smoothPath[m_nsmoothPath*3], iterPos);
 				m_nsmoothPath++;
 				

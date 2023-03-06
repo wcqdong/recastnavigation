@@ -336,6 +336,7 @@ inline float dtVperp2D(const float* u, const float* v)
 ///  @param[in]		b		Vertex B. [(x, y, z)]
 ///  @param[in]		c		Vertex C. [(x, y, z)]
 /// @return The signed xz-plane area of the triangle.
+/// 返回结果小于0则c在ab向量的左边
 inline float dtTriArea2D(const float* a, const float* b, const float* c)
 {
 	const float abx = b[0] - a[0];

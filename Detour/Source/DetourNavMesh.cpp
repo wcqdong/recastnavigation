@@ -762,7 +762,7 @@ void dtNavMesh::closestPointOnPoly(dtPolyRef ref, const float* pos, float* close
 	getTileAndPolyByRefUnsafe(ref, &tile, &poly);
 
 	dtVcopy(closest, pos);
-    // 1.如果在poly内
+    // 1.如果在poly内，则只计算高度closest[1]即可
 	if (getPolyHeight(tile, poly, pos, &closest[1]))
 	{
 		if (posOverPoly)
@@ -774,7 +774,7 @@ void dtNavMesh::closestPointOnPoly(dtPolyRef ref, const float* pos, float* close
 		*posOverPoly = false;
 
 	// Off-mesh connections don't have detail polygons.
-    // 2.如果poly是OFFMESH_CONNECTION
+    // 2.如果poly是OFFMESH_CONNECTION，则计算pos在start和end之间的平滑点
 	if (poly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
 	{
 		const float* v0 = &tile->verts[poly->verts[0]*3];
@@ -786,7 +786,7 @@ void dtNavMesh::closestPointOnPoly(dtPolyRef ref, const float* pos, float* close
 	}
 
 	// Outside poly that is not an offmesh connection.
-    // 如果不是OFFMESH_CONNECTION，并且在poly外
+    // 3.如果不是OFFMESH_CONNECTION，并且在poly外
 	closestPointOnDetailEdges<true>(tile, poly, pos, closest);
 }
 

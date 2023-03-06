@@ -167,17 +167,32 @@ bool dtIntersectSegmentPoly2D(const float* p0, const float* p1,
 	return true;
 }
 
+/// @brief https://blog.csdn.net/qinze5857/article/details/109705026
+/// 求点P到AB的距离，C为P到AB直线的映射
+/// 向量AC = (向量AP 点乘 向量AB) / |向量AB|²
+/// @param pt P
+/// @param p B
+/// @param q A
+/// @param t
+/// @return
 float dtDistancePtSegSqr2D(const float* pt, const float* p, const float* q, float& t)
 {
 	float pqx = q[0] - p[0];
 	float pqz = q[2] - p[2];
 	float dx = pt[0] - p[0];
 	float dz = pt[2] - p[2];
+    // |向量AB|²
 	float d = pqx*pqx + pqz*pqz;
+    // (向量AP 点乘 向量AB)
+    // P在AB上的投影，即AC的长度
 	t = pqx*dx + pqz*dz;
+    // (向量AP 点乘 向量AB) / |向量AB|²
+    // AC在AB长度上的比例
 	if (d > 0) t /= d;
+    // 把t控制在[0, 1]，使C点落在点A和点B之间
 	if (t < 0) t = 0;
 	else if (t > 1) t = 1;
+    // C点=(p[0] + t*pqx, p[2] + t*pqz)
 	dx = p[0] + t*pqx - pt[0];
 	dz = p[2] + t*pqz - pt[2];
 	return dx*dx + dz*dz;
@@ -256,6 +271,13 @@ bool dtPointInPolygon(const float* pt, const float* verts, const int nverts)
 	return c;
 }
 
+/// @brief 判断pt点是否在verts多边形内，并返回pt距离每个边的距离ed？？
+/// @param pt
+/// @param verts
+/// @param nverts
+/// @param ed
+/// @param et
+/// @return
 bool dtDistancePtPolyEdgesSqr(const float* pt, const float* verts, const int nverts,
 							  float* ed, float* et)
 {

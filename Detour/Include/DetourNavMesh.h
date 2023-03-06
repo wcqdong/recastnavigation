@@ -174,6 +174,8 @@ struct dtPoly
 
 	/// The bit packed area id and polygon type.
 	/// @note Use the structure's set and get methods to acess this value.
+	/// area 区域类型
+	/// type dtPolyTypes，地面还是offmesh-link
 	unsigned char areaAndtype;
 
 	/// Sets the user defined area id. [Limit: < #DT_MAX_AREAS]
@@ -206,9 +208,9 @@ struct dtLink
 	dtPolyRef ref;					///< Neighbour reference. (The neighbor that is linked to.) 邻居poly的ref
 	unsigned int next;				///< Index of the next link.
 	unsigned char edge;				///< Index of the polygon edge that owns this link.  当前poly的边
-	unsigned char side;				///< If a boundary link, defines on which side the link is.
-	unsigned char bmin;				///< If a boundary link, defines the minimum sub-edge area.
-	unsigned char bmax;				///< If a boundary link, defines the maximum sub-edge area.
+	unsigned char side;				///< If a boundary link, defines on which side the link is. 如果与其他tile连接，则其他tile在当前tile的哪个方向，具体方向看getNeighbourTilesAt函数
+	unsigned char bmin;				///< If a boundary link, defines the minimum sub-edge area. 门重叠的比例
+	unsigned char bmax;				///< If a boundary link, defines the maximum sub-edge area. 门重叠的比例，bmin和bmax之间为门在门dege之间的长度比例
 };
 
 /// Bounding volume node.
@@ -218,7 +220,7 @@ struct dtBVNode
 {
 	unsigned short bmin[3];			///< Minimum bounds of the node's AABB. [(x, y, z)]
 	unsigned short bmax[3];			///< Maximum bounds of the node's AABB. [(x, y, z)]
-	int i;							///< The node's index. (Negative for escape sequence.)  >=0说明是叶子节点，多边形的索引
+	int i;				        ///< The node's index. (Negative for escape sequence.)  >=0说明是叶子节点，多边形的索引
 };
 
 /// Defines an navigation mesh off-mesh connection within a dtMeshTile object.
