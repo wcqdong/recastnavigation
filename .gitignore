@@ -39,7 +39,8 @@ Thumbs.db
 *xcuserdata*
 
 ## SDL contrib
-RecastDemo/Contrib/SDL/*
+# RecastDemo/Contrib/SDL/*
+RecastDemo/Contrib/SDL/VisualC/.idea/
 
 ## Generated doc files
 Docs/html

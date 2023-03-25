@@ -1,0 +1,4 @@
+^D:\WORKSPACE\GITHUB\RECASTNAVIGATION_COMMENT\RECASTDEMO\CONTRIB\SDL\TEST\ICON.BMP
+copy "D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\test\icon.bmp" "D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\VisualC\tests\testscale\\"
+^D:\WORKSPACE\GITHUB\RECASTNAVIGATION_COMMENT\RECASTDEMO\CONTRIB\SDL\TEST\SAMPLE.BMP
+copy "D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\test\sample.bmp" "D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\VisualC\tests\testscale\\"

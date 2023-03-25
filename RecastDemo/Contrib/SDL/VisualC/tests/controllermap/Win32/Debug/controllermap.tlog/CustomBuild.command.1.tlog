@@ -1,0 +1,8 @@
+^D:\WORKSPACE\GITHUB\RECASTNAVIGATION_COMMENT\RECASTDEMO\CONTRIB\SDL\TEST\AXIS.BMP
+copy D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\test\axis.bmp D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\VisualC\tests\controllermap\\
+^D:\WORKSPACE\GITHUB\RECASTNAVIGATION_COMMENT\RECASTDEMO\CONTRIB\SDL\TEST\BUTTON.BMP
+copy D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\test\button.bmp D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\VisualC\tests\controllermap\\
+^D:\WORKSPACE\GITHUB\RECASTNAVIGATION_COMMENT\RECASTDEMO\CONTRIB\SDL\TEST\CONTROLLERMAP.BMP
+copy "D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\test\controllermap.bmp" "D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\VisualC\tests\controllermap\\"
+^D:\WORKSPACE\GITHUB\RECASTNAVIGATION_COMMENT\RECASTDEMO\CONTRIB\SDL\TEST\CONTROLLERMAP_BACK.BMP
+copy "D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\test\controllermap_back.bmp" "D:\workspace\github\recastnavigation_comment\RecastDemo\Contrib\SDL\VisualC\tests\controllermap\\"
