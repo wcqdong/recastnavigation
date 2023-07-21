@@ -54,7 +54,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 	memset(dist, 0xff, sizeof(unsigned char)*chf.spanCount);
 	
 	// Mark boundary cells.
-	// 标记出边界，本身span为不可走或者与四方向邻居都不相通，则span为边界，dist[i] = 0
+	// 标记出边界，本身span为不可走或者与任意邻居不可达，则span为边界，dist[i]设置为0
 	for (int y = 0; y < h; ++y)
 	{
 		for (int x = 0; x < w; ++x)
@@ -73,6 +73,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 					int nc = 0;
 					for (int dir = 0; dir < 4; ++dir)
 					{
+                        // 与邻居连通
 						if (rcGetCon(s, dir) != RC_NOT_CONNECTED)
 						{
 							const int nx = x + rcGetDirOffsetX(dir);
@@ -80,12 +81,13 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 							const int nidx = (int)chf.cells[nx+ny*w].index + rcGetCon(s, dir);
 							if (chf.areas[nidx] != RC_NULL_AREA)
 							{
+                                // 邻居可走，则++
 								nc++;
 							}
 						}
 					}
 					// At least one missing neighbour.
-					// 与一个邻居不连通
+					// 至少有一个邻居不可达，则认为i是边界
 					if (nc != 4)
 						dist[i] = 0;
 				}
