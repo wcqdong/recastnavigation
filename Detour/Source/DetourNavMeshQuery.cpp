@@ -2355,8 +2355,8 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly,
 		return DT_FAILURE | DT_INVALID_PARAM;
 	
 	// Handle off-mesh connections.
-        // 分几种情况
-        // 1.fromPoly为DT_POLYTYPE_OFFMESH_CONNECTION
+    // 分几种情况
+    // 1.fromPoly为DT_POLYTYPE_OFFMESH_CONNECTION
 	if (fromPoly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
 	{
 		// Find link that points to first vertex.
@@ -2364,7 +2364,7 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly,
 		{
 			if (fromTile->links[i].ref == to)
 			{
-                                // left和right为offmesh-link的起点
+                // left和right为offmesh-link的起点
 				const int v = fromTile->links[i].edge;
 				dtVcopy(left, &fromTile->verts[fromPoly->verts[v]*3]);
 				dtVcopy(right, &fromTile->verts[fromPoly->verts[v]*3]);
@@ -2374,7 +2374,7 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly,
 		return DT_FAILURE | DT_INVALID_PARAM;
 	}
 
-        // 1.toPoly为DT_POLYTYPE_OFFMESH_CONNECTION
+    // 1.toPoly为DT_POLYTYPE_OFFMESH_CONNECTION
 	if (toPoly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
 	{
 		for (unsigned int i = toPoly->firstLink; i != DT_NULL_LINK; i = toTile->links[i].next)
@@ -2391,8 +2391,8 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly,
 	}
 	
 	// Find portal vertices.
-        // v0 v1为边的两个点
-        // 3.边的起始点
+    // v0 v1为边的两个点
+    // 3.边的起始点
 	const int v0 = fromPoly->verts[link->edge];
 	const int v1 = fromPoly->verts[(link->edge+1) % (int)fromPoly->vertCount];
 	dtVcopy(left, &fromTile->verts[v0*3]);
@@ -2400,15 +2400,15 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly,
 	
 	// If the link is at tile boundary, dtClamp the vertices to
 	// the link width.
-        // side != 0xff，说明是门
-        // 4.如果是门，则为门重叠部分的起始点
+    // side != 0xff，说明是门
+    // 4.如果是门，则为门重叠部分的起始点
 	if (link->side != 0xff)
 	{
 		// Unpack portal limits.
-                // 取门的left和right
+        // 取门的left和right
 		if (link->bmin != 0 || link->bmax != 255)
 		{
-                        // link->bmin link->bmax为门重叠的部分所占的比例
+            // link->bmin link->bmax为门重叠的部分所占的比例
 			const float s = 1.0f/255.0f;
 			const float tmin = link->bmin*s;
 			const float tmax = link->bmax*s;
