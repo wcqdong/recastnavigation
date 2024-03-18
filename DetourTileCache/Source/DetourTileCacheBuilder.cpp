@@ -1431,7 +1431,7 @@ static bool canRemoveVertex(dtTileCachePolyMesh& mesh, const unsigned short rem)
 	
 	// Check that there is enough memory for the test.
 	const int maxEdges = numTouchedVerts*2;
-	if (maxEdges > MAX_REM_EDGES)
+	if (maxEdges * 3 > MAX_REM_EDGES)
 		return false;
 	
 	// Find edges which share the removed vertex.
